@@ -6,13 +6,11 @@ import { eq } from "drizzle-orm";
 import bcrypt from "bcryptjs";
 import { z } from "zod";
 
-function isAdmin(session: Awaited<ReturnType<typeof auth>>) {
-  return session && (session.user as { role?: string }).role === "ADMIN";
-}
-
 export async function GET() {
   const session = await auth();
-  if (!isAdmin(session)) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  if (!session || session.user.role !== "ADMIN") {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
 
   const users = await db
     .select({
@@ -37,7 +35,9 @@ const createSchema = z.object({
 
 export async function POST(req: NextRequest) {
   const session = await auth();
-  if (!isAdmin(session)) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  if (!session || session.user.role !== "ADMIN") {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
 
   const body = await req.json();
   const parsed = createSchema.safeParse(body);
@@ -49,7 +49,14 @@ export async function POST(req: NextRequest) {
   const [user] = await db
     .insert(staffUsers)
     .values({ name, email, passwordHash, role: "CLERK" })
-    .returning({ id: staffUsers.id, name: staffUsers.name, email: staffUsers.email, role: staffUsers.role, isActive: staffUsers.isActive, createdAt: staffUsers.createdAt });
+    .returning({
+      id: staffUsers.id,
+      name: staffUsers.name,
+      email: staffUsers.email,
+      role: staffUsers.role,
+      isActive: staffUsers.isActive,
+      createdAt: staffUsers.createdAt,
+    });
 
   return NextResponse.json(user, { status: 201 });
 }
@@ -61,7 +68,9 @@ const patchSchema = z.union([
 
 export async function PATCH(req: NextRequest) {
   const session = await auth();
-  if (!isAdmin(session)) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  if (!session || session.user.role !== "ADMIN") {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
 
   const body = await req.json();
   const parsed = patchSchema.safeParse(body);
