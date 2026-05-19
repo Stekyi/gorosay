@@ -1,0 +1,49 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(ls -laR \"d:\\\\\\\\gorosay\")",
+      "Bash(find \"d:\\\\\\\\gorosay\" -type f)",
+      "Bash(dir \"d:\\\\gorosay\")",
+      "Bash(npm --version)",
+      "Bash(git --version)",
+      "Bash(docker --version)",
+      "Bash(npm list *)",
+      "Bash(firebase --version)",
+      "Bash(netlify --version)",
+      "Bash(npx create-next-app@latest . --typescript --tailwind --eslint --app --src-dir --import-alias \"@/*\" --no-turbopack)",
+      "Bash(npm cache *)",
+      "Bash(npx create-next-app@latest . --typescript --tailwind --eslint --app --src-dir --import-alias \"@/*\" --no-turbopack --yes)",
+      "Bash(npm config *)",
+      "Bash(npx --yes create-next-app@latest . --typescript --tailwind --eslint --app --src-dir --import-alias \"@/*\" --no-turbopack --yes)",
+      "Bash(npm install *)",
+      "Bash(mkdir -p d:/gorosay/src/lib/db d:/gorosay/src/lib/storage d:/gorosay/src/lib/notifications d:/gorosay/src/lib/auth d:/gorosay/src/lib/utils d:/gorosay/src/lib/sms d:/gorosay/src/types && mkdir -p d:/gorosay/src/app/\\\\\\(auth\\\\\\)/login d:/gorosay/src/app/\\\\\\(dashboard\\\\\\)/dashboard d:/gorosay/src/app/\\\\\\(dashboard\\\\\\)/customers/new \"d:/gorosay/src/app/\\(dashboard\\)/customers/[id]\" d:/gorosay/src/app/\\\\\\(dashboard\\\\\\)/calendar \"d:/gorosay/src/app/\\(dashboard\\)/admin/reconciliation\" && mkdir -p d:/gorosay/src/app/api/customers d:/gorosay/src/app/api/vehicles d:/gorosay/src/app/api/drivers d:/gorosay/src/app/api/documents \"d:/gorosay/src/app/api/storage/upload-url\" \"d:/gorosay/src/app/api/storage/download-url\" d:/gorosay/src/app/api/payments d:/gorosay/src/app/api/service-charges \"d:/gorosay/src/app/api/cron/notify\" \"d:/gorosay/src/app/api/admin/settings\" \"d:/gorosay/src/app/api/admin/document-types\" \"d:/gorosay/src/app/api/admin/cities\" && mkdir -p d:/gorosay/src/components/customers d:/gorosay/src/components/vehicles d:/gorosay/src/components/drivers d:/gorosay/src/components/documents d:/gorosay/src/components/payments d:/gorosay/src/components/shared d:/gorosay/src/components/ui d:/gorosay/src/components/layout 2>&1)",
+      "Bash(npx shadcn@latest init --defaults --yes)",
+      "Bash(npx tsc *)",
+      "Bash(npm run *)",
+      "Bash(Remove-Item -Path \".next\" -Recurse -Force)",
+      "PowerShell(Remove-Item -Path \"d:\\\\gorosay\\\\.next\" -Recurse -Force -Confirm:$false)",
+      "PowerShell(icacls \"d:\\\\gorosay\\\\.next\" /grant \"$env:USERNAME:\\(OI\\)\\(CI\\)F\" /T 2>&1; Remove-Item -Path \"d:\\\\gorosay\\\\.next\" -Recurse -Force -Confirm:$false -ErrorAction SilentlyContinue; Write-Host \"Done\")",
+      "PowerShell(icacls \"d:\\\\gorosay\\\\.next\\\\types\" /grant \"${env:USERNAME}:\\(F\\)\" 2>&1; Remove-Item -Path \"d:\\\\gorosay\\\\.next\" -Recurse -Force -Confirm:$false -ErrorAction SilentlyContinue; if \\(Test-Path \"d:\\\\gorosay\\\\.next\"\\) { Write-Host \"Still exists\" } else { Write-Host \"Removed\" })",
+      "PowerShell(takeown /f \"d:\\\\gorosay\\\\.next\\\\types\" /r /d y 2>&1; icacls \"d:\\\\gorosay\\\\.next\\\\types\" /grant \"${env:USERNAME}:F\" /t 2>&1; Remove-Item -Path \"d:\\\\gorosay\\\\.next\" -Recurse -Force -Confirm:$false -ErrorAction SilentlyContinue; if \\(Test-Path \"d:\\\\gorosay\\\\.next\"\\) { Write-Host \"Still exists\" } else { Write-Host \"Removed\" })",
+      "Bash(cmd.exe /c \"rd /s /q D:\\\\gorosay\\\\.next\")",
+      "Bash(echo \"exit: $?\")",
+      "Bash(cmd.exe /c \"rd /s /q D:\\\\gorosay\\\\.next\\\\types\")",
+      "Bash(cmd.exe /c \"attrib -r -s -h D:\\\\gorosay\\\\.next\\\\types\")",
+      "PowerShell(Get-Volume -DriveLetter D)",
+      "PowerShell(Get-Volume -DriveLetter C)",
+      "Bash(node_modules/.bin/next build *)",
+      "Bash(cmd.exe /c \"rd /s /q D:\\\\gorosay\\\\.next 2>nul & rd /s /q D:\\\\gorosay\\\\.build 2>nul & echo cleaned\")",
+      "Bash(cmd.exe /c \"dir /a D:\\\\gorosay\\\\.next 2>&1 & echo ---\")",
+      "Bash(timeout 12 node_modules/.bin/next dev --webpack --port 3001)",
+      "Bash(git init *)",
+      "Bash(git remote *)",
+      "Bash(git config *)",
+      "Bash(git check-ignore *)",
+      "Bash(git add *)",
+      "Bash(cmd.exe /c \"rd /s /q D:\\\\gorosay\\\\.build 2>nul\")"
+    ],
+    "additionalDirectories": [
+      "d:\\gorosay\\src\\app\\(dashboard)\\customers"
+    ]
+  }
+}
