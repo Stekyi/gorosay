@@ -58,15 +58,17 @@ export default function AdminPage() {
 
   useEffect(() => {
     Promise.all([
-      fetch("/api/admin/settings").then((r) => r.json()),
-      fetch("/api/admin/document-types?active=false").then((r) => r.json()),
-      fetch("/api/admin/users").then((r) => r.json()),
+      fetch("/api/admin/settings").then((r) => r.json()).catch(() => []),
+      fetch("/api/admin/document-types?active=false").then((r) => r.json()).catch(() => []),
+      fetch("/api/admin/users").then((r) => r.json()).catch(() => []),
     ]).then(([s, dt, users]) => {
-      const map: Record<string, string> = {};
-      for (const row of s as Setting[]) map[row.key] = row.value;
-      setSettings(map);
-      setDocTypes(dt);
-      setStaffList(users);
+      if (Array.isArray(s)) {
+        const map: Record<string, string> = {};
+        for (const row of s as Setting[]) map[row.key] = row.value;
+        setSettings(map);
+      }
+      if (Array.isArray(dt)) setDocTypes(dt);
+      if (Array.isArray(users)) setStaffList(users);
     });
   }, []);
 
