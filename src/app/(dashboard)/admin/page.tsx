@@ -1,11 +1,20 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Settings, FileText, MapPin, DollarSign, MessageSquare, Mail } from "lucide-react";
+import { Settings, FileText, DollarSign, MessageSquare, Mail, Users, Eye, EyeOff, Plus, X } from "lucide-react";
 
 interface Setting {
   key: string;
   value: string;
+}
+
+interface StaffUser {
+  id: string;
+  name: string;
+  email: string;
+  role: string;
+  isActive: boolean;
+  createdAt: string;
 }
 
 interface DocType {
@@ -38,18 +47,76 @@ export default function AdminPage() {
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [newDocType, setNewDocType] = useState({ name: "", appliesTo: "vehicle" });
+  const [staffList, setStaffList] = useState<StaffUser[]>([]);
+  const [showCreateUser, setShowCreateUser] = useState(false);
+  const [newUser, setNewUser] = useState({ name: "", email: "", password: "", confirm: "" });
+  const [newUserError, setNewUserError] = useState("");
+  const [creatingUser, setCreatingUser] = useState(false);
+  const [showPwd, setShowPwd] = useState(false);
+  const [resetTarget, setResetTarget] = useState<StaffUser | null>(null);
+  const [resetPwd, setResetPwd] = useState("");
 
   useEffect(() => {
     Promise.all([
       fetch("/api/admin/settings").then((r) => r.json()),
       fetch("/api/admin/document-types?active=false").then((r) => r.json()),
-    ]).then(([s, dt]) => {
+      fetch("/api/admin/users").then((r) => r.json()),
+    ]).then(([s, dt, users]) => {
       const map: Record<string, string> = {};
       for (const row of s as Setting[]) map[row.key] = row.value;
       setSettings(map);
       setDocTypes(dt);
+      setStaffList(users);
     });
   }, []);
+
+  async function createUser(e: React.FormEvent) {
+    e.preventDefault();
+    setNewUserError("");
+    if (newUser.password !== newUser.confirm) {
+      setNewUserError("Passwords do not match.");
+      return;
+    }
+    if (newUser.password.length < 8) {
+      setNewUserError("Password must be at least 8 characters.");
+      return;
+    }
+    setCreatingUser(true);
+    const res = await fetch("/api/admin/users", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name: newUser.name, email: newUser.email, password: newUser.password }),
+    });
+    const data = await res.json();
+    setCreatingUser(false);
+    if (!res.ok) {
+      setNewUserError(data.error?.fieldErrors?.email?.[0] ?? "Failed to create user.");
+      return;
+    }
+    setStaffList((prev) => [...prev, data]);
+    setNewUser({ name: "", email: "", password: "", confirm: "" });
+    setShowCreateUser(false);
+  }
+
+  async function toggleUserActive(user: StaffUser) {
+    await fetch("/api/admin/users", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id: user.id, isActive: !user.isActive }),
+    });
+    setStaffList((prev) => prev.map((u) => u.id === user.id ? { ...u, isActive: !u.isActive } : u));
+  }
+
+  async function resetPassword() {
+    if (!resetTarget || resetPwd.length < 8) return;
+    await fetch("/api/admin/users", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id: resetTarget.id, password: resetPwd }),
+    });
+    setResetTarget(null);
+    setResetPwd("");
+  }
 
   async function saveSettings() {
     setSaving(true);
@@ -130,6 +197,153 @@ export default function AdminPage() {
         <h1 className="text-2xl font-bold text-slate-900">Admin Settings</h1>
         <p className="text-sm text-slate-500 mt-0.5">Configure pricing, SMS, email, and document types</p>
       </div>
+
+      {/* Staff Users */}
+      <div className="bg-white rounded-xl border border-slate-200 p-6">
+        <div className="flex items-center justify-between pb-3 border-b border-slate-100 mb-4">
+          <div className="flex items-center gap-2">
+            <Users className="w-4 h-4 text-slate-500" />
+            <h2 className="font-semibold text-slate-900">Staff Users</h2>
+          </div>
+          <button
+            onClick={() => setShowCreateUser((v) => !v)}
+            className="flex items-center gap-1 text-xs text-blue-600 hover:text-blue-700 font-medium"
+          >
+            {showCreateUser ? <><X className="w-3.5 h-3.5" /> Cancel</> : <><Plus className="w-3.5 h-3.5" /> Add User</>}
+          </button>
+        </div>
+
+        {showCreateUser && (
+          <form onSubmit={createUser} className="mb-5 p-4 bg-blue-50 rounded-xl border border-blue-100 space-y-3">
+            <p className="text-xs font-medium text-blue-800">New staff user — role is Clerk (no admin access)</p>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block text-xs text-slate-600 mb-1">Full Name</label>
+                <input
+                  required
+                  value={newUser.name}
+                  onChange={(e) => setNewUser((u) => ({ ...u, name: e.target.value }))}
+                  className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm"
+                  placeholder="Ama Owusu"
+                />
+              </div>
+              <div>
+                <label className="block text-xs text-slate-600 mb-1">Email Address</label>
+                <input
+                  required
+                  type="email"
+                  value={newUser.email}
+                  onChange={(e) => setNewUser((u) => ({ ...u, email: e.target.value }))}
+                  className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm"
+                  placeholder="ama@example.com"
+                />
+              </div>
+              <div className="relative">
+                <label className="block text-xs text-slate-600 mb-1">Password (min 8 chars)</label>
+                <input
+                  required
+                  type={showPwd ? "text" : "password"}
+                  value={newUser.password}
+                  onChange={(e) => setNewUser((u) => ({ ...u, password: e.target.value }))}
+                  className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm pr-9"
+                  placeholder="••••••••"
+                />
+                <button type="button" onClick={() => setShowPwd((v) => !v)} className="absolute right-2.5 top-7 text-slate-400 hover:text-slate-600">
+                  {showPwd ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                </button>
+              </div>
+              <div>
+                <label className="block text-xs text-slate-600 mb-1">Confirm Password</label>
+                <input
+                  required
+                  type={showPwd ? "text" : "password"}
+                  value={newUser.confirm}
+                  onChange={(e) => setNewUser((u) => ({ ...u, confirm: e.target.value }))}
+                  className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm"
+                  placeholder="••••••••"
+                />
+              </div>
+            </div>
+            {newUserError && <p className="text-xs text-red-600">{newUserError}</p>}
+            <button
+              type="submit"
+              disabled={creatingUser}
+              className="px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white rounded-lg text-sm font-medium"
+            >
+              {creatingUser ? "Creating..." : "Create User"}
+            </button>
+          </form>
+        )}
+
+        <div className="space-y-2">
+          {staffList.map((user) => (
+            <div key={user.id} className="flex items-center justify-between py-2.5 px-3 bg-slate-50 rounded-lg">
+              <div>
+                <div className="flex items-center gap-2">
+                  <span className="text-sm font-medium text-slate-900">{user.name}</span>
+                  <span className={`text-xs px-1.5 py-0.5 rounded-full font-medium ${
+                    user.role === "ADMIN" ? "bg-purple-100 text-purple-700" : "bg-slate-200 text-slate-600"
+                  }`}>{user.role}</span>
+                  {!user.isActive && <span className="text-xs text-red-500">Inactive</span>}
+                </div>
+                <p className="text-xs text-slate-400 mt-0.5">{user.email}</p>
+              </div>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => { setResetTarget(user); setResetPwd(""); }}
+                  className="text-xs text-slate-500 hover:text-blue-600 px-2 py-1 rounded border border-slate-200 hover:border-blue-300"
+                >
+                  Reset PW
+                </button>
+                {user.role !== "ADMIN" && (
+                  <button
+                    onClick={() => toggleUserActive(user)}
+                    className={`text-xs px-2 py-1 rounded-full font-medium border transition-colors ${
+                      user.isActive
+                        ? "bg-green-50 text-green-700 border-green-200 hover:bg-red-50 hover:text-red-700 hover:border-red-200"
+                        : "bg-slate-100 text-slate-500 border-slate-200 hover:bg-green-50 hover:text-green-700 hover:border-green-200"
+                    }`}
+                  >
+                    {user.isActive ? "Active" : "Inactive"}
+                  </button>
+                )}
+              </div>
+            </div>
+          ))}
+          {staffList.length === 0 && (
+            <p className="text-sm text-slate-400 text-center py-3">No staff users yet.</p>
+          )}
+        </div>
+      </div>
+
+      {/* Reset password modal */}
+      {resetTarget && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+          <div className="bg-white rounded-2xl shadow-xl p-6 w-full max-w-sm mx-4">
+            <h3 className="font-semibold text-slate-900 mb-1">Reset Password</h3>
+            <p className="text-xs text-slate-500 mb-4">Set a new password for <strong>{resetTarget.name}</strong></p>
+            <input
+              type="password"
+              placeholder="New password (min 8 chars)"
+              value={resetPwd}
+              onChange={(e) => setResetPwd(e.target.value)}
+              className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm mb-4"
+            />
+            <div className="flex gap-2">
+              <button
+                onClick={resetPassword}
+                disabled={resetPwd.length < 8}
+                className="flex-1 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-300 text-white py-2 rounded-lg text-sm font-medium"
+              >
+                Update Password
+              </button>
+              <button onClick={() => setResetTarget(null)} className="flex-1 border border-slate-300 rounded-lg text-sm py-2 hover:bg-slate-50">
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Settings sections */}
       {sections.map((section) => (

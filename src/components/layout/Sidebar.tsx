@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useSession } from "next-auth/react";
 import {
   LayoutDashboard,
   Users,
@@ -14,15 +15,17 @@ import {
 import { cn } from "@/lib/utils/cn";
 
 const navItems = [
-  { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
-  { href: "/customers", label: "Customers", icon: Users },
-  { href: "/reports", label: "Search & Reports", icon: Search },
-  { href: "/calendar", label: "Calendar", icon: Calendar },
-  { href: "/admin", label: "Admin", icon: Settings },
+  { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard, adminOnly: false },
+  { href: "/customers", label: "Customers", icon: Users, adminOnly: false },
+  { href: "/reports", label: "Search & Reports", icon: Search, adminOnly: false },
+  { href: "/calendar", label: "Calendar", icon: Calendar, adminOnly: false },
+  { href: "/admin", label: "Admin", icon: Settings, adminOnly: true },
 ];
 
 export function Sidebar() {
   const pathname = usePathname();
+  const { data: session } = useSession();
+  const isAdmin = (session?.user as { role?: string } | undefined)?.role === "ADMIN";
 
   return (
     <aside className="w-60 min-h-screen bg-slate-900 text-slate-100 flex flex-col">
@@ -39,7 +42,7 @@ export function Sidebar() {
 
       {/* Nav */}
       <nav className="flex-1 px-3 py-4 space-y-1">
-        {navItems.map((item) => {
+        {navItems.filter((item) => !item.adminOnly || isAdmin).map((item) => {
           const active = pathname.startsWith(item.href);
           return (
             <Link
