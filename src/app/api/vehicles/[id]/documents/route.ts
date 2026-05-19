@@ -27,6 +27,7 @@ export async function GET(
       renewalDates: documents.renewalDates,
       entityRef: documents.entityRef,
       fileName: documents.fileName,
+      fileKey: documents.fileKey,
       uploadedAt: documents.uploadedAt,
     })
     .from(documents)

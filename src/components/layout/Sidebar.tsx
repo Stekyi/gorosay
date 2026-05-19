@@ -9,12 +9,14 @@ import {
   Settings,
   ChevronRight,
   FileText,
+  Search,
 } from "lucide-react";
 import { cn } from "@/lib/utils/cn";
 
 const navItems = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { href: "/customers", label: "Customers", icon: Users },
+  { href: "/reports", label: "Search & Reports", icon: Search },
   { href: "/calendar", label: "Calendar", icon: Calendar },
   { href: "/admin", label: "Admin", icon: Settings },
 ];

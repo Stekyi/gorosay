@@ -50,6 +50,7 @@ interface Document {
   issueDate: string | null;
   expiryDate: string | null;
   fileName: string;
+  fileKey: string;
   uploadedAt: string;
 }
 
@@ -269,7 +270,7 @@ export default function CustomerProfilePage({ params }: { params: Promise<{ id: 
                           <div className="flex items-center gap-2">
                             <ExpiryDateBadge expiryDate={doc.expiryDate} />
                             <button
-                              onClick={() => downloadDoc(doc.fileName)}
+                              onClick={() => downloadDoc(doc.fileKey)}
                               className="text-slate-400 hover:text-blue-600"
                               title="Download"
                             >
@@ -358,7 +359,7 @@ export default function CustomerProfilePage({ params }: { params: Promise<{ id: 
                         {doc ? (
                           <div className="flex items-center gap-2">
                             <ExpiryDateBadge expiryDate={doc.expiryDate} />
-                            <button onClick={() => downloadDoc(doc.fileName)} className="text-slate-400 hover:text-blue-600"><Download className="w-3.5 h-3.5" /></button>
+                            <button onClick={() => downloadDoc(doc.fileKey)} className="text-slate-400 hover:text-blue-600"><Download className="w-3.5 h-3.5" /></button>
                             <button onClick={() => setUploadTarget({ entityType: "driver", entityId: d.id, entityRef: d.fullName, isRenewal: true })} className="text-slate-400 hover:text-green-600"><RefreshCw className="w-3.5 h-3.5" /></button>
                           </div>
                         ) : (
