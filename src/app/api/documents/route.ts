@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest, NextResponse, after } from "next/server";
 import { auth } from "@/lib/auth/session";
 import { db } from "@/lib/db";
 import { documents, documentTypes, vehicles, drivers, serviceCharges } from "@/lib/db/schema";
@@ -113,27 +113,28 @@ export async function POST(req: NextRequest) {
     })
     .returning();
 
-  // Send document upload notification email (fire-and-forget)
-  (async () => {
+  // Send document upload notification email after response is returned
+  const emailData = { ...data };
+  after(async () => {
     try {
       let customerEmail: string | null = null;
       let customerName: string | null = null;
 
-      if (data.vehicleId) {
+      if (emailData.vehicleId) {
         const [row] = await db
           .select({ email: customers.email, name: customers.name })
           .from(vehicles)
           .innerJoin(customers, eq(vehicles.customerId, customers.id))
-          .where(eq(vehicles.id, data.vehicleId))
+          .where(eq(vehicles.id, emailData.vehicleId))
           .limit(1);
         customerEmail = row?.email ?? null;
         customerName = row?.name ?? null;
-      } else if (data.driverId) {
+      } else if (emailData.driverId) {
         const [row] = await db
           .select({ email: customers.email, name: customers.name })
           .from(drivers)
           .innerJoin(customers, eq(drivers.customerId, customers.id))
-          .where(eq(drivers.id, data.driverId!))
+          .where(eq(drivers.id, emailData.driverId!))
           .limit(1);
         customerEmail = row?.email ?? null;
         customerName = row?.name ?? null;
@@ -169,7 +170,7 @@ export async function POST(req: NextRequest) {
     } catch {
       // Email failure must not affect the document save response
     }
-  })();
+  });
 
   return NextResponse.json(doc, { status: 201 });
 }

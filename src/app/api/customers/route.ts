@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest, NextResponse, after } from "next/server";
 import { auth } from "@/lib/auth/session";
 import { db } from "@/lib/db";
 import { customers, cities, suburbs, serviceCharges, paymentRecords } from "@/lib/db/schema";
@@ -104,11 +104,8 @@ export async function POST(req: NextRequest) {
     .returning();
 
   if (customer.email) {
-    sendWelcomeEmail({
-      name: customer.name,
-      email: customer.email,
-      customerNumber: customer.customerNumber ?? "",
-    }).catch(() => {});
+    const emailPayload = { name: customer.name, email: customer.email, customerNumber: customer.customerNumber ?? "" };
+    after(async () => { await sendWelcomeEmail(emailPayload).catch(() => {}); });
   }
 
   return NextResponse.json(customer, { status: 201 });

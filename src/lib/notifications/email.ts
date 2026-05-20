@@ -13,7 +13,7 @@ async function getTransport() {
   ]);
 
   const host = smtpHost || "smtp.gmail.com";
-  const port = parseInt(smtpPort || "465", 10);
+  const port = parseInt(smtpPort || "587", 10);
   const user = smtpUsername || fromAddress || "";
 
   return nodemailer.createTransport({
@@ -21,6 +21,10 @@ async function getTransport() {
     port,
     secure: port === 465,
     auth: { user, pass: appPassword ?? "" },
+    connectionTimeout: 10000,
+    greetingTimeout: 10000,
+    socketTimeout: 15000,
+    tls: { minVersion: "TLSv1.2" },
   });
 }
 
