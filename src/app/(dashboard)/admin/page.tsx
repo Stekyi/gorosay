@@ -451,9 +451,11 @@ export default function AdminPage() {
                     <td className="py-2 pr-3 text-slate-600 max-w-[220px] truncate" title={log.subject}>{log.subject}</td>
                     <td className="py-2">
                       <span className={`inline-block px-1.5 py-0.5 rounded-full font-medium ${
-                        log.status === "sent" ? "bg-green-100 text-green-700" : "bg-red-100 text-red-700"
+                        log.status === "sent" ? "bg-green-100 text-green-700" :
+                        log.status === "skipped" ? "bg-slate-100 text-slate-500" :
+                        "bg-red-100 text-red-700"
                       }`}>
-                        {log.status === "sent" ? "Sent" : "Failed"}
+                        {log.status === "sent" ? "Sent" : log.status === "skipped" ? "Skipped" : "Failed"}
                       </span>
                       {log.errorMessage && (
                         <p className="text-red-500 text-xs mt-0.5 max-w-[200px] break-words">{log.errorMessage.slice(0, 120)}</p>

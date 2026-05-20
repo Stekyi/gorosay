@@ -6,7 +6,7 @@ import { eq, and } from "drizzle-orm";
 import { getPrices } from "@/lib/utils/settings";
 import { deleteFile, docFileKey, extFromMime, vehicleFolderKey, driverFolderKey, getPublicDownloadUrl } from "@/lib/storage/r2";
 import { sendDocumentUploadEmail } from "@/lib/notifications/email";
-import { customers } from "@/lib/db/schema";
+import { customers, emailLogs } from "@/lib/db/schema";
 import { z } from "zod";
 
 const createSchema = z.object({
@@ -139,23 +139,32 @@ export async function POST(req: NextRequest) {
         customerName = row?.name ?? null;
       }
 
-      if (customerEmail) {
-        const [docType] = await db
-          .select({ name: documentTypes.name })
-          .from(documentTypes)
-          .where(eq(documentTypes.id, data.documentTypeId))
-          .limit(1);
+      const [docType] = await db
+        .select({ name: documentTypes.name })
+        .from(documentTypes)
+        .where(eq(documentTypes.id, data.documentTypeId))
+        .limit(1);
+      const docTypeName = docType?.name ?? "Document";
 
+      if (customerEmail) {
         const downloadUrl = await getPublicDownloadUrl(data.fileKey);
         await sendDocumentUploadEmail({
           customerEmail,
           customerName: customerName ?? "Customer",
-          documentType: docType?.name ?? "Document",
+          documentType: docTypeName,
           entityRef: data.entityRef ?? "",
           issueDate: data.issueDate ?? null,
           expiryDate: data.expiryDate ?? null,
           downloadUrl,
         });
+      } else {
+        // No email on file — log as skipped so it's visible in the admin log
+        await db.insert(emailLogs).values({
+          type: "document_upload",
+          recipient: "—",
+          subject: `${docTypeName} for ${data.entityRef ?? ""} — no customer email on file`,
+          status: "skipped",
+        }).catch(() => {});
       }
     } catch {
       // Email failure must not affect the document save response
