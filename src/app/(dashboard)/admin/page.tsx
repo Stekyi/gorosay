@@ -55,6 +55,7 @@ export default function AdminPage() {
   const [resetPwd, setResetPwd] = useState("");
   const [logs, setLogs] = useState<LogEntry[]>([]);
   const [logsLoading, setLogsLoading] = useState(false);
+  const [retrying, setRetrying] = useState(false);
 
   function loadLogs() {
     setLogsLoading(true);
@@ -63,6 +64,17 @@ export default function AdminPage() {
       .then((data) => { if (Array.isArray(data)) setLogs(data); })
       .catch(() => {})
       .finally(() => setLogsLoading(false));
+  }
+
+  async function retryFailed() {
+    setRetrying(true);
+    try {
+      await fetch("/api/admin/alerts/retry", { method: "POST" });
+      await new Promise((r) => setTimeout(r, 1200));
+      loadLogs();
+    } finally {
+      setRetrying(false);
+    }
   }
 
   useEffect(() => {
@@ -436,14 +448,26 @@ export default function AdminPage() {
                 <p className="text-xs text-slate-500">Last 14 days · {logs.length} entries</p>
               </div>
             </div>
-            <button
-              onClick={loadLogs}
-              disabled={logsLoading}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-slate-600 border border-slate-200 hover:bg-slate-50 disabled:opacity-50 transition-colors"
-            >
-              <RefreshCw className={`w-3.5 h-3.5 ${logsLoading ? "animate-spin" : ""}`} />
-              Refresh
-            </button>
+            <div className="flex items-center gap-2">
+              {logs.some((l) => l.status === "failed") && (
+                <button
+                  onClick={retryFailed}
+                  disabled={retrying}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-red-600 border border-red-200 hover:bg-red-50 disabled:opacity-50 transition-colors"
+                >
+                  <RefreshCw className={`w-3.5 h-3.5 ${retrying ? "animate-spin" : ""}`} />
+                  {retrying ? "Retrying…" : "Retry Failed"}
+                </button>
+              )}
+              <button
+                onClick={loadLogs}
+                disabled={logsLoading}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-slate-600 border border-slate-200 hover:bg-slate-50 disabled:opacity-50 transition-colors"
+              >
+                <RefreshCw className={`w-3.5 h-3.5 ${logsLoading ? "animate-spin" : ""}`} />
+                Refresh
+              </button>
+            </div>
           </div>
 
           {logs.length === 0 && !logsLoading ? (
