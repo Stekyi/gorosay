@@ -1,5 +1,6 @@
 import { db } from "@/lib/db";
 import { documents, notificationLogs, emailLogs, customers, vehicles, drivers, documentTypes } from "@/lib/db/schema";
+import { processAlerts } from "./alerts";
 import { and, eq, gte, lte, isNotNull, lt, or } from "drizzle-orm";
 import { addDays, subDays, format, parseISO, differenceInCalendarDays } from "date-fns";
 import { sendEmail, buildExpiryEmailHtml } from "./email";
@@ -22,6 +23,9 @@ export async function runNotificationJob(): Promise<{
   sent: number;
   errors: string[];
 }> {
+  // Process any pending/failed transactional alerts first (welcome + doc_upload)
+  await processAlerts().catch(() => {});
+
   const notifyDays = await getNotifyDays();
   const maxDays = Math.max(...notifyDays);
   const today = new Date();

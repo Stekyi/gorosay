@@ -1,12 +1,11 @@
 import { NextRequest, NextResponse, after } from "next/server";
 import { auth } from "@/lib/auth/session";
 import { db } from "@/lib/db";
-import { documents, documentTypes, vehicles, drivers, serviceCharges } from "@/lib/db/schema";
+import { documents, documentTypes, vehicles, drivers, serviceCharges, customers } from "@/lib/db/schema";
 import { eq, and, ilike, ne, isNotNull } from "drizzle-orm";
 import { getPrices } from "@/lib/utils/settings";
-import { deleteFile, docFileKey, extFromMime, vehicleFolderKey, driverFolderKey, getPublicDownloadUrl } from "@/lib/storage/r2";
-import { sendDocumentUploadEmail } from "@/lib/notifications/email";
-import { customers, emailLogs } from "@/lib/db/schema";
+import { deleteFile, docFileKey, extFromMime, vehicleFolderKey, driverFolderKey } from "@/lib/storage/r2";
+import { processAlerts } from "@/lib/notifications/alerts";
 import { z } from "zod";
 
 const createSchema = z.object({
@@ -150,70 +149,8 @@ export async function POST(req: NextRequest) {
     })
     .returning();
 
-  // Pre-fetch email data now (same pattern as welcome email — no DB queries inside after())
-  let notifyEmail: string | null = null;
-  let notifyName: string | null = null;
-  if (data.vehicleId) {
-    const [row] = await db
-      .select({ email: customers.email, name: customers.name })
-      .from(vehicles)
-      .innerJoin(customers, eq(vehicles.customerId, customers.id))
-      .where(eq(vehicles.id, data.vehicleId))
-      .limit(1);
-    notifyEmail = row?.email ?? null;
-    notifyName = row?.name ?? null;
-  } else if (data.driverId) {
-    const [row] = await db
-      .select({ email: customers.email, name: customers.name })
-      .from(drivers)
-      .innerJoin(customers, eq(drivers.customerId, customers.id))
-      .where(eq(drivers.id, data.driverId!))
-      .limit(1);
-    notifyEmail = row?.email ?? null;
-    notifyName = row?.name ?? null;
-  }
-  const [docTypeRow] = await db
-    .select({ name: documentTypes.name })
-    .from(documentTypes)
-    .where(eq(documentTypes.id, data.documentTypeId))
-    .limit(1);
-  const docTypeName = docTypeRow?.name ?? "Document";
-
-  // After response: only R2 URL generation + email send — no DB selects
-  const emailSnap = {
-    email: notifyEmail,
-    name: notifyName ?? "Customer",
-    docTypeName,
-    entityRef: data.entityRef ?? "",
-    issueDate: data.issueDate ?? null,
-    expiryDate: data.expiryDate ?? null,
-    fileKey: data.fileKey,
-  };
-  after(async () => {
-    if (!emailSnap.email) {
-      await db.insert(emailLogs).values({
-        type: "document_upload",
-        recipient: "—",
-        subject: `${emailSnap.docTypeName} for ${emailSnap.entityRef} — no customer email on file`,
-        status: "skipped",
-      }).catch(() => {});
-      return;
-    }
-    try {
-      const downloadUrl = await getPublicDownloadUrl(emailSnap.fileKey);
-      await sendDocumentUploadEmail({
-        customerEmail: emailSnap.email,
-        customerName: emailSnap.name,
-        documentType: emailSnap.docTypeName,
-        entityRef: emailSnap.entityRef,
-        issueDate: emailSnap.issueDate,
-        expiryDate: emailSnap.expiryDate,
-        downloadUrl,
-      });
-    } catch {
-      // sendEmail already logs the failure to email_logs via its finally block
-    }
-  });
+  // Trigger created an alert row; process it after response is sent
+  after(() => processAlerts().catch(() => {}));
 
   return NextResponse.json(doc, { status: 201 });
 }

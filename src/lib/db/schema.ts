@@ -220,7 +220,28 @@ export const paymentRecords = pgTable("payment_records", {
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
-// ─── Email Logs (transactional: welcome + document upload) ───────────────────
+// ─── Alerts (event queue populated by DB triggers, processed async) ──────────
+
+export const alerts = pgTable(
+  "alerts",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    type: varchar("type", { length: 50 }).notNull(), // 'welcome' | 'doc_upload'
+    status: varchar("status", { length: 20 }).notNull().default("pending"), // pending | sent | failed | skipped
+    recipientEmail: varchar("recipient_email", { length: 200 }),
+    recipientName: varchar("recipient_name", { length: 200 }),
+    payload: jsonb("payload").notNull().default({}),
+    errorMessage: text("error_message"),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    processedAt: timestamp("processed_at"),
+  },
+  (t) => [
+    index("alerts_status_idx").on(t.status),
+    index("alerts_created_at_idx").on(t.createdAt),
+  ]
+);
+
+// ─── Email Logs (legacy — kept for old rows, no longer written to) ────────────
 
 export const emailLogs = pgTable("email_logs", {
   id: uuid("id").defaultRandom().primaryKey(),
