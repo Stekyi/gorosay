@@ -2,7 +2,7 @@ import { NextRequest, NextResponse, after } from "next/server";
 import { auth } from "@/lib/auth/session";
 import { db } from "@/lib/db";
 import { documents, documentTypes, vehicles, drivers, serviceCharges } from "@/lib/db/schema";
-import { eq, and } from "drizzle-orm";
+import { eq, and, ilike, ne, isNotNull } from "drizzle-orm";
 import { getPrices } from "@/lib/utils/settings";
 import { deleteFile, docFileKey, extFromMime, vehicleFolderKey, driverFolderKey, getPublicDownloadUrl } from "@/lib/storage/r2";
 import { sendDocumentUploadEmail } from "@/lib/notifications/email";
@@ -42,10 +42,47 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "vehicleId or driverId required" }, { status: 400 });
   }
 
+  // Uniqueness: document number must not already exist for a different entity (same doc type)
+  if (data.documentNumber?.trim()) {
+    const docNumRows = await db
+      .select({ vehicleId: documents.vehicleId, driverId: documents.driverId, entityRef: documents.entityRef })
+      .from(documents)
+      .where(and(
+        eq(documents.documentTypeId, data.documentTypeId),
+        eq(documents.version, 1),
+        ilike(documents.documentNumber, data.documentNumber.trim()),
+        isNotNull(documents.documentNumber),
+      ));
+    const conflict = docNumRows.find((d) =>
+      data.vehicleId ? d.vehicleId !== data.vehicleId : d.driverId !== data.driverId
+    );
+    if (conflict) {
+      return NextResponse.json(
+        { error: `Document number "${data.documentNumber}" is already registered for ${conflict.entityRef ?? "another entry"}` },
+        { status: 409 }
+      );
+    }
+  }
+
   // Find existing documents for this entity + document type
   const entityCondition = data.vehicleId
     ? eq(documents.vehicleId, data.vehicleId)
     : eq(documents.driverId, data.driverId!);
+
+  // Duplicate guard: same entity + doc type + expiry date already has an active document
+  if (data.expiryDate) {
+    const [dupExpiry] = await db
+      .select({ id: documents.id })
+      .from(documents)
+      .where(and(eq(documents.documentTypeId, data.documentTypeId), entityCondition, eq(documents.version, 1), eq(documents.expiryDate, data.expiryDate)))
+      .limit(1);
+    if (dupExpiry) {
+      return NextResponse.json(
+        { error: `An active document of this type with expiry date ${data.expiryDate} is already on file` },
+        { status: 409 }
+      );
+    }
+  }
 
   const existing = await db
     .select()

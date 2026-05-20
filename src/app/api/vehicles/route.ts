@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth/session";
 import { db } from "@/lib/db";
 import { vehicles, serviceCharges } from "@/lib/db/schema";
-import { eq } from "drizzle-orm";
+import { eq, ilike } from "drizzle-orm";
 import { nextVehicleNumber } from "@/lib/utils/id-generator";
 import { getPrices } from "@/lib/utils/settings";
 import { vehicleFolderKey } from "@/lib/storage/r2";
@@ -31,6 +31,21 @@ export async function POST(req: NextRequest) {
   }
 
   const data = parsed.data;
+
+  if (data.registrationNumber) {
+    const [dup] = await db
+      .select({ vehicleNumber: vehicles.vehicleNumber })
+      .from(vehicles)
+      .where(ilike(vehicles.registrationNumber, data.registrationNumber.trim()))
+      .limit(1);
+    if (dup) {
+      return NextResponse.json(
+        { error: `Registration number already registered under vehicle ${dup.vehicleNumber}` },
+        { status: 409 }
+      );
+    }
+  }
+
   const vehicleNumber = await nextVehicleNumber();
   const prices = await getPrices();
 

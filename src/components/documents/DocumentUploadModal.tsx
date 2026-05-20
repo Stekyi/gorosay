@@ -124,7 +124,10 @@ export function DocumentUploadModal({
           isRenewal,
         }),
       });
-      if (!docRes.ok) throw new Error("Failed to save document");
+      if (!docRes.ok) {
+        const errData = await docRes.json().catch(() => ({}));
+        throw new Error(typeof errData.error === "string" ? errData.error : "Failed to save document");
+      }
 
       onSuccess();
     } catch (err: unknown) {

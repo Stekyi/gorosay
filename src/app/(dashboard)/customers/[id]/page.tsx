@@ -83,6 +83,8 @@ export default function CustomerProfilePage({ params }: { params: Promise<{ id: 
   const [addingDriver, setAddingDriver] = useState(false);
   const [vehicleForm, setVehicleForm] = useState({ registrationNumber: "", make: "", model: "", year: "", vehicleType: "car", color: "" });
   const [driverForm, setDriverForm] = useState({ fullName: "", tel: "", dateOfBirth: "" });
+  const [vehicleError, setVehicleError] = useState("");
+  const [driverError, setDriverError] = useState("");
 
   // Customer edit modal
   const [editingCustomer, setEditingCustomer] = useState(false);
@@ -128,22 +130,32 @@ export default function CustomerProfilePage({ params }: { params: Promise<{ id: 
 
   async function handleAddVehicle(e: React.FormEvent) {
     e.preventDefault();
+    setVehicleError("");
     const res = await fetch("/api/vehicles", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ customerId: id, ...vehicleForm, year: vehicleForm.year ? parseInt(vehicleForm.year) : undefined }),
     });
     if (res.ok) { setAddingVehicle(false); loadProfile(); }
+    else {
+      const d = await res.json().catch(() => ({}));
+      setVehicleError(typeof d.error === "string" ? d.error : "Failed to add vehicle");
+    }
   }
 
   async function handleAddDriver(e: React.FormEvent) {
     e.preventDefault();
+    setDriverError("");
     const res = await fetch("/api/drivers", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ customerId: id, ...driverForm }),
     });
     if (res.ok) { setAddingDriver(false); loadProfile(); }
+    else {
+      const d = await res.json().catch(() => ({}));
+      setDriverError(typeof d.error === "string" ? d.error : "Failed to add driver");
+    }
   }
 
   async function downloadDoc(fileKey: string) {
@@ -312,9 +324,10 @@ export default function CustomerProfilePage({ params }: { params: Promise<{ id: 
                 />
               ))}
             </div>
+            {vehicleError && <p className="text-xs text-red-600 mb-2">{vehicleError}</p>}
             <div className="flex gap-2">
               <button type="submit" className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium">Save Vehicle (GHC 50 charged)</button>
-              <button type="button" onClick={() => setAddingVehicle(false)} className="px-4 py-2 border border-slate-300 rounded-lg text-sm">Cancel</button>
+              <button type="button" onClick={() => { setAddingVehicle(false); setVehicleError(""); }} className="px-4 py-2 border border-slate-300 rounded-lg text-sm">Cancel</button>
             </div>
           </form>
         )}
@@ -411,9 +424,10 @@ export default function CustomerProfilePage({ params }: { params: Promise<{ id: 
               <input placeholder="Phone" value={driverForm.tel} onChange={(e) => setDriverForm((f) => ({ ...f, tel: e.target.value }))} className="px-3 py-2 border border-slate-300 rounded-lg text-sm" />
               <input type="date" placeholder="Date of Birth" value={driverForm.dateOfBirth} onChange={(e) => setDriverForm((f) => ({ ...f, dateOfBirth: e.target.value }))} className="px-3 py-2 border border-slate-300 rounded-lg text-sm" />
             </div>
+            {driverError && <p className="text-xs text-red-600 mb-2">{driverError}</p>}
             <div className="flex gap-2">
               <button type="submit" className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium">Save Driver (GHC 15 charged)</button>
-              <button type="button" onClick={() => setAddingDriver(false)} className="px-4 py-2 border border-slate-300 rounded-lg text-sm">Cancel</button>
+              <button type="button" onClick={() => { setAddingDriver(false); setDriverError(""); }} className="px-4 py-2 border border-slate-300 rounded-lg text-sm">Cancel</button>
             </div>
           </form>
         )}
