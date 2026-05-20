@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Settings, FileText, DollarSign, MessageSquare, Mail, Users, Eye, EyeOff, Plus, X } from "lucide-react";
+import { Settings, FileText, DollarSign, MessageSquare, Mail, Users, Eye, EyeOff, Plus, X, ScrollText, RefreshCw } from "lucide-react";
 
 interface Setting {
   key: string;
@@ -24,6 +24,17 @@ interface DocType {
   appliesTo: string;
   isActive: boolean;
   sortOrder: number;
+}
+
+interface LogEntry {
+  id: string;
+  sentAt: string;
+  type: string;
+  channel: "email" | "sms";
+  recipient: string;
+  subject: string;
+  status: string;
+  errorMessage: string | null;
 }
 
 const SETTING_LABELS: Record<string, { label: string; type: string; section: string }> = {
@@ -58,6 +69,17 @@ export default function AdminPage() {
   const [showPwd, setShowPwd] = useState(false);
   const [resetTarget, setResetTarget] = useState<StaffUser | null>(null);
   const [resetPwd, setResetPwd] = useState("");
+  const [logs, setLogs] = useState<LogEntry[]>([]);
+  const [logsLoading, setLogsLoading] = useState(false);
+
+  function loadLogs() {
+    setLogsLoading(true);
+    fetch("/api/admin/email-logs?limit=100")
+      .then((r) => r.json())
+      .then((data) => { if (Array.isArray(data)) setLogs(data); })
+      .catch(() => {})
+      .finally(() => setLogsLoading(false));
+  }
 
   useEffect(() => {
     Promise.all([
@@ -73,6 +95,7 @@ export default function AdminPage() {
       if (Array.isArray(dt)) setDocTypes(dt);
       if (Array.isArray(users)) setStaffList(users);
     });
+    loadLogs();
   }, []);
 
   async function createUser(e: React.FormEvent) {
@@ -371,6 +394,77 @@ export default function AdminPage() {
         >
           {saving ? "Saving..." : saved ? "Saved!" : "Save All Settings"}
         </button>
+      </div>
+
+      {/* Email & Alert Log */}
+      <div className="bg-white rounded-xl border border-slate-200 p-6">
+        <div className="flex items-center justify-between pb-3 border-b border-slate-100 mb-4">
+          <div className="flex items-center gap-2">
+            <ScrollText className="w-4 h-4 text-slate-500" />
+            <h2 className="font-semibold text-slate-900">Email & Alert Log</h2>
+            <span className="text-xs text-slate-400">(last 14 days)</span>
+          </div>
+          <button
+            onClick={loadLogs}
+            disabled={logsLoading}
+            className="flex items-center gap-1 text-xs text-slate-500 hover:text-blue-600 disabled:opacity-50"
+          >
+            <RefreshCw className={`w-3.5 h-3.5 ${logsLoading ? "animate-spin" : ""}`} />
+            Refresh
+          </button>
+        </div>
+
+        {logs.length === 0 && !logsLoading ? (
+          <p className="text-sm text-slate-400 text-center py-4">No emails sent yet.</p>
+        ) : (
+          <div className="overflow-x-auto max-h-80 overflow-y-auto">
+            <table className="w-full text-xs">
+              <thead>
+                <tr className="text-left text-slate-500 border-b border-slate-100 sticky top-0 bg-white">
+                  <th className="pb-2 pr-3 font-medium">Time</th>
+                  <th className="pb-2 pr-3 font-medium">Type</th>
+                  <th className="pb-2 pr-3 font-medium">Recipient</th>
+                  <th className="pb-2 pr-3 font-medium">Subject / Details</th>
+                  <th className="pb-2 font-medium">Status</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-50">
+                {logs.map((log) => (
+                  <tr key={log.id} className={log.status === "failed" ? "bg-red-50" : ""}>
+                    <td className="py-2 pr-3 text-slate-500 whitespace-nowrap">
+                      {new Date(log.sentAt).toLocaleString("en-GB", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" })}
+                    </td>
+                    <td className="py-2 pr-3">
+                      <span className={`inline-block px-1.5 py-0.5 rounded-full font-medium whitespace-nowrap ${
+                        log.type === "welcome" ? "bg-green-100 text-green-700" :
+                        log.type === "document_upload" ? "bg-blue-100 text-blue-700" :
+                        log.type === "sms_alert" ? "bg-purple-100 text-purple-700" :
+                        "bg-orange-100 text-orange-700"
+                      }`}>
+                        {log.type === "welcome" ? "Welcome" :
+                         log.type === "document_upload" ? "Doc Upload" :
+                         log.type === "sms_alert" ? "SMS Alert" :
+                         "Expiry Alert"}
+                      </span>
+                    </td>
+                    <td className="py-2 pr-3 text-slate-700 max-w-[140px] truncate">{log.recipient}</td>
+                    <td className="py-2 pr-3 text-slate-600 max-w-[220px] truncate" title={log.subject}>{log.subject}</td>
+                    <td className="py-2">
+                      <span className={`inline-block px-1.5 py-0.5 rounded-full font-medium ${
+                        log.status === "sent" ? "bg-green-100 text-green-700" : "bg-red-100 text-red-700"
+                      }`}>
+                        {log.status === "sent" ? "Sent" : "Failed"}
+                      </span>
+                      {log.errorMessage && (
+                        <span className="ml-1 text-red-500 cursor-help" title={log.errorMessage}>⚠</span>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
       </div>
 
       {/* Document Types */}

@@ -1,5 +1,7 @@
 import nodemailer from "nodemailer";
 import { getSetting, SETTING_KEYS } from "@/lib/utils/settings";
+import { db } from "@/lib/db";
+import { emailLogs } from "@/lib/db/schema";
 
 async function getTransport() {
   const [fromAddress, appPassword, smtpHost, smtpPort, smtpUsername] = await Promise.all([
@@ -27,6 +29,8 @@ export interface EmailOptions {
   subject: string;
   html: string;
   text?: string;
+  /** When set, the send result is written to email_logs. Omit for scheduler emails (already logged via notification_logs). */
+  type?: "welcome" | "document_upload";
 }
 
 export async function sendEmail(opts: EmailOptions): Promise<void> {
@@ -39,13 +43,31 @@ export async function sendEmail(opts: EmailOptions): Promise<void> {
   ]);
 
   const transport = await getTransport();
-  await transport.sendMail({
-    from: `"${fromName ?? "Gorosay"}" <${fromAddress}>`,
-    to: opts.to,
-    subject: opts.subject,
-    html: opts.html,
-    text: opts.text,
-  });
+  let status: "sent" | "failed" = "sent";
+  let errorMessage: string | null = null;
+  try {
+    await transport.sendMail({
+      from: `"${fromName ?? "Gorosay"}" <${fromAddress}>`,
+      to: opts.to,
+      subject: opts.subject,
+      html: opts.html,
+      text: opts.text,
+    });
+  } catch (err) {
+    status = "failed";
+    errorMessage = err instanceof Error ? err.message : String(err);
+    throw err;
+  } finally {
+    if (opts.type) {
+      db.insert(emailLogs).values({
+        type: opts.type,
+        recipient: opts.to,
+        subject: opts.subject,
+        status,
+        errorMessage,
+      }).catch(() => {});
+    }
+  }
 }
 
 // ── Email templates ──────────────────────────────────────────────────────────
@@ -109,6 +131,7 @@ export async function sendWelcomeEmail(customer: {
     subject: `Welcome to ${fromName} — You're all set!`,
     html: emailWrapper(content, fromName),
     text: `Hi ${customer.name}, welcome! Your account ID is ${customer.customerNumber}. We'll alert you before your documents expire.`,
+    type: "welcome",
   });
 }
 
@@ -159,6 +182,7 @@ export async function sendDocumentUploadEmail(params: {
     subject: `Document uploaded — ${documentType} for ${entityRef}`,
     html: emailWrapper(content, fromName),
     text: `Hi ${customerName}, a new ${documentType} document has been uploaded for ${entityRef}. Download here: ${downloadUrl}`,
+    type: "document_upload",
   });
 }
 

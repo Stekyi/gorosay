@@ -220,6 +220,18 @@ export const paymentRecords = pgTable("payment_records", {
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
+// ─── Email Logs (transactional: welcome + document upload) ───────────────────
+
+export const emailLogs = pgTable("email_logs", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  type: varchar("type", { length: 50 }).notNull(), // 'welcome' | 'document_upload'
+  recipient: varchar("recipient", { length: 200 }).notNull(),
+  subject: varchar("subject", { length: 500 }).notNull(),
+  status: varchar("status", { length: 20 }).notNull().default("sent"), // 'sent' | 'failed'
+  errorMessage: text("error_message"),
+  sentAt: timestamp("sent_at").defaultNow().notNull(),
+});
+
 // ─── Notification Logs ────────────────────────────────────────────────────────
 
 export const notificationLogs = pgTable(

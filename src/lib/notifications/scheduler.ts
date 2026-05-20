@@ -1,7 +1,7 @@
 import { db } from "@/lib/db";
-import { documents, notificationLogs, customers, vehicles, drivers, documentTypes } from "@/lib/db/schema";
-import { and, eq, gte, lte, isNotNull, or } from "drizzle-orm";
-import { addDays, format, parseISO, differenceInCalendarDays } from "date-fns";
+import { documents, notificationLogs, emailLogs, customers, vehicles, drivers, documentTypes } from "@/lib/db/schema";
+import { and, eq, gte, lte, isNotNull, lt, or } from "drizzle-orm";
+import { addDays, subDays, format, parseISO, differenceInCalendarDays } from "date-fns";
 import { sendEmail, buildExpiryEmailHtml } from "./email";
 import { sendSms, buildExpiryMessage } from "./sms";
 import { getSetting, getNotifyDays, SETTING_KEYS } from "@/lib/utils/settings";
@@ -215,6 +215,13 @@ export async function runNotificationJob(): Promise<{
       }
     }
   }
+
+  // Purge logs older than 14 days
+  const cutoff = subDays(today, 14);
+  await Promise.all([
+    db.delete(notificationLogs).where(lt(notificationLogs.sentAt, cutoff)),
+    db.delete(emailLogs).where(lt(emailLogs.sentAt, cutoff)),
+  ]);
 
   return { processed: targets.length, sent, errors };
 }
