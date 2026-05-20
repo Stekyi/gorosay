@@ -473,12 +473,12 @@ export default function AdminPage() {
                       <td className="px-3 py-3">
                         <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium whitespace-nowrap ${
                           log.type === "welcome" ? "bg-emerald-100 text-emerald-700" :
-                          log.type === "document_upload" ? "bg-blue-100 text-blue-700" :
+                          log.type === "doc_upload" ? "bg-blue-100 text-blue-700" :
                           log.type === "sms_alert" ? "bg-purple-100 text-purple-700" :
                           "bg-orange-100 text-orange-700"
                         }`}>
                           {log.type === "welcome" ? "Welcome" :
-                           log.type === "document_upload" ? "Doc Upload" :
+                           log.type === "doc_upload" ? "Doc Upload" :
                            log.type === "sms_alert" ? "SMS Alert" :
                            "Expiry Alert"}
                         </span>

@@ -29,12 +29,12 @@ async function processWelcome(alert: typeof alerts.$inferSelect): Promise<void> 
     await db.update(alerts).set({ status: "skipped", processedAt: new Date() }).where(eq(alerts.id, alert.id));
     return;
   }
-  const p = alert.payload as { name?: string; customerNumber?: string };
+  const p = alert.payload as { name?: string; customer_number?: string };
   try {
     await sendWelcomeEmail({
       name: p.name ?? alert.recipientName ?? "",
       email: alert.recipientEmail,
-      customerNumber: p.customerNumber ?? "",
+      customerNumber: p.customer_number ?? "",
     });
     await db.update(alerts).set({ status: "sent", processedAt: new Date() }).where(eq(alerts.id, alert.id));
   } catch (err) {
@@ -52,21 +52,21 @@ async function processDocUpload(alert: typeof alerts.$inferSelect): Promise<void
     return;
   }
   const p = alert.payload as {
-    docTypeName?: string;
-    entityRef?: string;
-    fileKey?: string;
-    issueDate?: string | null;
-    expiryDate?: string | null;
+    doc_type_name?: string;
+    entity_ref?: string;
+    file_key?: string;
+    issue_date?: string | null;
+    expiry_date?: string | null;
   };
   try {
-    const downloadUrl = await getPublicDownloadUrl(p.fileKey!);
+    const downloadUrl = await getPublicDownloadUrl(p.file_key!);
     await sendDocumentUploadEmail({
       customerEmail: alert.recipientEmail,
       customerName: alert.recipientName ?? "Customer",
-      documentType: p.docTypeName ?? "Document",
-      entityRef: p.entityRef ?? "",
-      issueDate: p.issueDate ?? null,
-      expiryDate: p.expiryDate ?? null,
+      documentType: p.doc_type_name ?? "Document",
+      entityRef: p.entity_ref ?? "",
+      issueDate: p.issue_date ?? null,
+      expiryDate: p.expiry_date ?? null,
       downloadUrl,
     });
     await db.update(alerts).set({ status: "sent", processedAt: new Date() }).where(eq(alerts.id, alert.id));

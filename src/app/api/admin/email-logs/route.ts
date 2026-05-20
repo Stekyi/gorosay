@@ -57,8 +57,8 @@ export async function GET(req: NextRequest) {
         r.type === "welcome"
           ? `Welcome to Gorosay — ${r.recipientName ?? ""}`
           : (() => {
-              const p = r.payload as { docTypeName?: string; entityRef?: string };
-              return `${p.docTypeName ?? "Document"} uploaded for ${p.entityRef ?? ""}`;
+              const p = r.payload as { doc_type_name?: string; entity_ref?: string };
+              return `${p.doc_type_name ?? "Document"} uploaded for ${p.entity_ref ?? ""}`;
             })(),
       status: r.status,
       errorMessage: r.errorMessage,
