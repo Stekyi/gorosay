@@ -75,6 +75,30 @@ export function DocumentUploadModal({
     e.preventDefault();
     if (!file || !selectedDocType) return;
 
+    const today = new Date().toISOString().slice(0, 10);
+
+    if (expiryDate) {
+      if (issueDate && expiryDate < issueDate) {
+        setError("Expiry date cannot be before the issue date.");
+        return;
+      }
+      if (expiryDate < today) {
+        setError("Expiry date cannot be in the past.");
+        return;
+      }
+    }
+
+    for (const rd of renewalDates.filter(Boolean)) {
+      if (issueDate && rd < issueDate) {
+        setError("Renewal dates cannot be before the issue date.");
+        return;
+      }
+      if (rd < today) {
+        setError("Renewal dates cannot be in the past.");
+        return;
+      }
+    }
+
     setUploading(true);
     setError("");
 

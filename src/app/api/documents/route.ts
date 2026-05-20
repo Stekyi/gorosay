@@ -41,6 +41,25 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "vehicleId or driverId required" }, { status: 400 });
   }
 
+  // Date logic: expiry and renewal dates must not be before issue date or today
+  const today = new Date().toISOString().slice(0, 10);
+  if (data.expiryDate) {
+    if (data.issueDate && data.expiryDate < data.issueDate) {
+      return NextResponse.json({ error: "Expiry date cannot be before the issue date." }, { status: 400 });
+    }
+    if (data.expiryDate < today) {
+      return NextResponse.json({ error: "Expiry date cannot be in the past." }, { status: 400 });
+    }
+  }
+  for (const rd of data.renewalDates ?? []) {
+    if (data.issueDate && rd < data.issueDate) {
+      return NextResponse.json({ error: "Renewal dates cannot be before the issue date." }, { status: 400 });
+    }
+    if (rd < today) {
+      return NextResponse.json({ error: "Renewal dates cannot be in the past." }, { status: 400 });
+    }
+  }
+
   // Uniqueness: document number must not already exist for a different entity (same doc type)
   if (data.documentNumber?.trim()) {
     const docNumRows = await db
