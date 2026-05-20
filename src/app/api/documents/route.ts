@@ -4,7 +4,9 @@ import { db } from "@/lib/db";
 import { documents, documentTypes, vehicles, drivers, serviceCharges } from "@/lib/db/schema";
 import { eq, and } from "drizzle-orm";
 import { getPrices } from "@/lib/utils/settings";
-import { deleteFile, docFileKey, extFromMime, vehicleFolderKey, driverFolderKey } from "@/lib/storage/r2";
+import { deleteFile, docFileKey, extFromMime, vehicleFolderKey, driverFolderKey, getPublicDownloadUrl } from "@/lib/storage/r2";
+import { sendDocumentUploadEmail } from "@/lib/notifications/email";
+import { customers } from "@/lib/db/schema";
 import { z } from "zod";
 
 const createSchema = z.object({
@@ -110,6 +112,55 @@ export async function POST(req: NextRequest) {
       notes: data.notes ?? null,
     })
     .returning();
+
+  // Send document upload notification email (fire-and-forget)
+  (async () => {
+    try {
+      let customerEmail: string | null = null;
+      let customerName: string | null = null;
+
+      if (data.vehicleId) {
+        const [row] = await db
+          .select({ email: customers.email, name: customers.name })
+          .from(vehicles)
+          .innerJoin(customers, eq(vehicles.customerId, customers.id))
+          .where(eq(vehicles.id, data.vehicleId))
+          .limit(1);
+        customerEmail = row?.email ?? null;
+        customerName = row?.name ?? null;
+      } else if (data.driverId) {
+        const [row] = await db
+          .select({ email: customers.email, name: customers.name })
+          .from(drivers)
+          .innerJoin(customers, eq(drivers.customerId, customers.id))
+          .where(eq(drivers.id, data.driverId!))
+          .limit(1);
+        customerEmail = row?.email ?? null;
+        customerName = row?.name ?? null;
+      }
+
+      if (customerEmail) {
+        const [docType] = await db
+          .select({ name: documentTypes.name })
+          .from(documentTypes)
+          .where(eq(documentTypes.id, data.documentTypeId))
+          .limit(1);
+
+        const downloadUrl = await getPublicDownloadUrl(data.fileKey);
+        await sendDocumentUploadEmail({
+          customerEmail,
+          customerName: customerName ?? "Customer",
+          documentType: docType?.name ?? "Document",
+          entityRef: data.entityRef ?? "",
+          issueDate: data.issueDate ?? null,
+          expiryDate: data.expiryDate ?? null,
+          downloadUrl,
+        });
+      }
+    } catch {
+      // Email failure must not affect the document save response
+    }
+  })();
 
   return NextResponse.json(doc, { status: 201 });
 }

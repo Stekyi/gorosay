@@ -54,6 +54,14 @@ export async function getDownloadUrl(key: string): Promise<string> {
   );
 }
 
+export async function getPublicDownloadUrl(key: string): Promise<string> {
+  return getSignedUrl(
+    r2,
+    new GetObjectCommand({ Bucket: BUCKET, Key: key }),
+    { expiresIn: 60 * 60 * 24 * 30 } // 30 days
+  );
+}
+
 export async function deleteFile(key: string): Promise<void> {
   await r2.send(new DeleteObjectCommand({ Bucket: BUCKET, Key: key }));
 }

@@ -5,6 +5,7 @@ import { customers, cities, suburbs, serviceCharges, paymentRecords } from "@/li
 import { eq, ilike, or, and, sql } from "drizzle-orm";
 import { nextCustomerNumber } from "@/lib/utils/id-generator";
 import { getPrices } from "@/lib/utils/settings";
+import { sendWelcomeEmail } from "@/lib/notifications/email";
 import { z } from "zod";
 
 const createSchema = z.object({
@@ -101,6 +102,14 @@ export async function POST(req: NextRequest) {
       suburbId: data.suburbId ?? null,
     })
     .returning();
+
+  if (customer.email) {
+    sendWelcomeEmail({
+      name: customer.name,
+      email: customer.email,
+      customerNumber: customer.customerNumber ?? "",
+    }).catch(() => {});
+  }
 
   return NextResponse.json(customer, { status: 201 });
 }
