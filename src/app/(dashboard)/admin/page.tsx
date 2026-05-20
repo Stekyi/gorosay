@@ -456,7 +456,7 @@ export default function AdminPage() {
                         {log.status === "sent" ? "Sent" : "Failed"}
                       </span>
                       {log.errorMessage && (
-                        <span className="ml-1 text-red-500 cursor-help" title={log.errorMessage}>⚠</span>
+                        <p className="text-red-500 text-xs mt-0.5 max-w-[200px] break-words">{log.errorMessage.slice(0, 120)}</p>
                       )}
                     </td>
                   </tr>
