@@ -80,7 +80,7 @@ export default function NewCustomerPage() {
   }
 
   return (
-    <div className="max-w-xl">
+    <div className="max-w-xl mx-auto">
       <div className="flex items-center gap-3 mb-6">
         <Link href="/customers" className="text-slate-400 hover:text-slate-600">
           <ArrowLeft className="w-5 h-5" />

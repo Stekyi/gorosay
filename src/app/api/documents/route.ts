@@ -150,62 +150,68 @@ export async function POST(req: NextRequest) {
     })
     .returning();
 
-  // Send document upload notification email after response is returned
-  const emailData = { ...data };
+  // Pre-fetch email data now (same pattern as welcome email — no DB queries inside after())
+  let notifyEmail: string | null = null;
+  let notifyName: string | null = null;
+  if (data.vehicleId) {
+    const [row] = await db
+      .select({ email: customers.email, name: customers.name })
+      .from(vehicles)
+      .innerJoin(customers, eq(vehicles.customerId, customers.id))
+      .where(eq(vehicles.id, data.vehicleId))
+      .limit(1);
+    notifyEmail = row?.email ?? null;
+    notifyName = row?.name ?? null;
+  } else if (data.driverId) {
+    const [row] = await db
+      .select({ email: customers.email, name: customers.name })
+      .from(drivers)
+      .innerJoin(customers, eq(drivers.customerId, customers.id))
+      .where(eq(drivers.id, data.driverId!))
+      .limit(1);
+    notifyEmail = row?.email ?? null;
+    notifyName = row?.name ?? null;
+  }
+  const [docTypeRow] = await db
+    .select({ name: documentTypes.name })
+    .from(documentTypes)
+    .where(eq(documentTypes.id, data.documentTypeId))
+    .limit(1);
+  const docTypeName = docTypeRow?.name ?? "Document";
+
+  // After response: only R2 URL generation + email send — no DB selects
+  const emailSnap = {
+    email: notifyEmail,
+    name: notifyName ?? "Customer",
+    docTypeName,
+    entityRef: data.entityRef ?? "",
+    issueDate: data.issueDate ?? null,
+    expiryDate: data.expiryDate ?? null,
+    fileKey: data.fileKey,
+  };
   after(async () => {
+    if (!emailSnap.email) {
+      await db.insert(emailLogs).values({
+        type: "document_upload",
+        recipient: "—",
+        subject: `${emailSnap.docTypeName} for ${emailSnap.entityRef} — no customer email on file`,
+        status: "skipped",
+      }).catch(() => {});
+      return;
+    }
     try {
-      let customerEmail: string | null = null;
-      let customerName: string | null = null;
-
-      if (emailData.vehicleId) {
-        const [row] = await db
-          .select({ email: customers.email, name: customers.name })
-          .from(vehicles)
-          .innerJoin(customers, eq(vehicles.customerId, customers.id))
-          .where(eq(vehicles.id, emailData.vehicleId))
-          .limit(1);
-        customerEmail = row?.email ?? null;
-        customerName = row?.name ?? null;
-      } else if (emailData.driverId) {
-        const [row] = await db
-          .select({ email: customers.email, name: customers.name })
-          .from(drivers)
-          .innerJoin(customers, eq(drivers.customerId, customers.id))
-          .where(eq(drivers.id, emailData.driverId!))
-          .limit(1);
-        customerEmail = row?.email ?? null;
-        customerName = row?.name ?? null;
-      }
-
-      const [docType] = await db
-        .select({ name: documentTypes.name })
-        .from(documentTypes)
-        .where(eq(documentTypes.id, data.documentTypeId))
-        .limit(1);
-      const docTypeName = docType?.name ?? "Document";
-
-      if (customerEmail) {
-        const downloadUrl = await getPublicDownloadUrl(data.fileKey);
-        await sendDocumentUploadEmail({
-          customerEmail,
-          customerName: customerName ?? "Customer",
-          documentType: docTypeName,
-          entityRef: data.entityRef ?? "",
-          issueDate: data.issueDate ?? null,
-          expiryDate: data.expiryDate ?? null,
-          downloadUrl,
-        });
-      } else {
-        // No email on file — log as skipped so it's visible in the admin log
-        await db.insert(emailLogs).values({
-          type: "document_upload",
-          recipient: "—",
-          subject: `${docTypeName} for ${data.entityRef ?? ""} — no customer email on file`,
-          status: "skipped",
-        }).catch(() => {});
-      }
+      const downloadUrl = await getPublicDownloadUrl(emailSnap.fileKey);
+      await sendDocumentUploadEmail({
+        customerEmail: emailSnap.email,
+        customerName: emailSnap.name,
+        documentType: emailSnap.docTypeName,
+        entityRef: emailSnap.entityRef,
+        issueDate: emailSnap.issueDate,
+        expiryDate: emailSnap.expiryDate,
+        downloadUrl,
+      });
     } catch {
-      // Email failure must not affect the document save response
+      // sendEmail already logs the failure to email_logs via its finally block
     }
   });
 
