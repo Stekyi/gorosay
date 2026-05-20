@@ -20,10 +20,11 @@ async function getTransport() {
     host,
     port,
     secure: port === 465,
+    requireTLS: port !== 465, // enforce STARTTLS on port 587
     auth: { user, pass: appPassword ?? "" },
-    connectionTimeout: 10000,
-    greetingTimeout: 10000,
-    socketTimeout: 15000,
+    connectionTimeout: 5000,
+    greetingTimeout: 5000,
+    socketTimeout: 7000,
     tls: { minVersion: "TLSv1.2" },
   });
 }
