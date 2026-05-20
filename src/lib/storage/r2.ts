@@ -58,7 +58,7 @@ export async function getPublicDownloadUrl(key: string): Promise<string> {
   return getSignedUrl(
     r2,
     new GetObjectCommand({ Bucket: BUCKET, Key: key }),
-    { expiresIn: 60 * 60 * 24 * 30 } // 30 days
+    { expiresIn: 60 * 60 * 24 * 6 } // 6 days (R2 max is 7)
   );
 }
 

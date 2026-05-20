@@ -156,7 +156,7 @@ export async function sendDocumentUploadEmail(params: {
       Download Document
     </a>
     <p style="margin:16px 0 0;font-size:12px;color:#9ca3af;">
-      This download link is valid for 30 days. Contact us if you need a new link after it expires.
+      This download link is valid for 6 days. Contact us if you need a new link after it expires.
     </p>`;
 
   await sendEmail({
