@@ -2,13 +2,20 @@ import nodemailer from "nodemailer";
 import { getSetting, SETTING_KEYS } from "@/lib/utils/settings";
 
 async function getTransport() {
-  const [fromAddress, appPassword] = await Promise.all([
+  const [fromAddress, appPassword, smtpHost, smtpPort] = await Promise.all([
     getSetting(SETTING_KEYS.EMAIL_FROM_ADDRESS),
     getSetting(SETTING_KEYS.EMAIL_APP_PASSWORD),
+    getSetting(SETTING_KEYS.EMAIL_SMTP_HOST),
+    getSetting(SETTING_KEYS.EMAIL_SMTP_PORT),
   ]);
 
+  const host = smtpHost || "smtp.zoho.com";
+  const port = parseInt(smtpPort || "465", 10);
+
   return nodemailer.createTransport({
-    service: "gmail",
+    host,
+    port,
+    secure: port === 465,
     auth: {
       user: fromAddress ?? "",
       pass: appPassword ?? "",

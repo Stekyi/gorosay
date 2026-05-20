@@ -13,9 +13,11 @@ const DEFAULT_SETTINGS = [
   { key: "sms_api_key", value: "" },
   { key: "sms_sender_id", value: "GOROSAY" },
   { key: "sms_enabled", value: "true" },
-  { key: "email_from_name", value: "Gorosay" },
-  { key: "email_from_address", value: "asamoahtekyi@gmail.com" },
+  { key: "email_from_name", value: "Tiwaak" },
+  { key: "email_from_address", value: "info@tiwaak.com" },
   { key: "email_app_password", value: "" },
+  { key: "email_smtp_host", value: "smtp.zoho.com" },
+  { key: "email_smtp_port", value: "465" },
   { key: "email_enabled", value: "true" },
   { key: "notify_days_before", value: "5,1" },
 ];
