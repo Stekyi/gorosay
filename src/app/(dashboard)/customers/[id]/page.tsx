@@ -2,7 +2,7 @@
 
 import { useEffect, useState, use } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Plus, Car, User, FileText, CreditCard, Download, RefreshCw } from "lucide-react";
+import { ArrowLeft, Plus, Car, User, FileText, CreditCard, Download, RefreshCw, Pencil, X, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { ExpiryDateBadge } from "@/components/shared/ExpiryDateBadge";
 import { DocumentUploadModal } from "@/components/documents/DocumentUploadModal";
@@ -17,6 +17,8 @@ interface CustomerProfile {
     tel: string;
     email: string | null;
     location: string | null;
+    cityId: string | null;
+    suburbId: string | null;
     cityName: string | null;
     suburbName: string | null;
     createdAt: string;
@@ -49,6 +51,8 @@ interface Document {
   placeOfIssue: string | null;
   issueDate: string | null;
   expiryDate: string | null;
+  renewalDates: string[] | null;
+  notes: string | null;
   fileName: string;
   fileKey: string;
   uploadedAt: string;
@@ -79,6 +83,18 @@ export default function CustomerProfilePage({ params }: { params: Promise<{ id: 
   const [addingDriver, setAddingDriver] = useState(false);
   const [vehicleForm, setVehicleForm] = useState({ registrationNumber: "", make: "", model: "", year: "", vehicleType: "car", color: "" });
   const [driverForm, setDriverForm] = useState({ fullName: "", tel: "", dateOfBirth: "" });
+
+  // Customer edit modal
+  const [editingCustomer, setEditingCustomer] = useState(false);
+  const [editCForm, setEditCForm] = useState({ name: "", tel: "", email: "", location: "", customerType: "INDIVIDUAL" as "INDIVIDUAL" | "AGENCY", cityId: "", suburbId: "" });
+  const [editCities, setEditCities] = useState<{ id: string; name: string }[]>([]);
+  const [editSuburbs, setEditSuburbs] = useState<{ id: string; name: string }[]>([]);
+  const [savingCustomer, setSavingCustomer] = useState(false);
+
+  // Document edit modal
+  const [editingDoc, setEditingDoc] = useState<Document | null>(null);
+  const [editDForm, setEditDForm] = useState({ documentNumber: "", placeOfIssue: "", issueDate: "", expiryDate: "", renewalDates: [] as string[], notes: "" });
+  const [savingDoc, setSavingDoc] = useState(false);
 
   async function loadProfile() {
     const [profileRes, dtRes] = await Promise.all([
@@ -140,6 +156,68 @@ export default function CustomerProfilePage({ params }: { params: Promise<{ id: 
     window.open(downloadUrl, "_blank");
   }
 
+  async function openCustomerEdit() {
+    if (!profile) return;
+    const c = profile.customer;
+    setEditCForm({ name: c.name, tel: c.tel, email: c.email ?? "", location: c.location ?? "", customerType: c.customerType as "INDIVIDUAL" | "AGENCY", cityId: c.cityId ?? "", suburbId: c.suburbId ?? "" });
+    const [citiesRes, suburbsRes] = await Promise.all([
+      fetch("/api/admin/cities").then((r) => r.json()),
+      fetch("/api/admin/cities?withSuburbs=true").then((r) => r.json()),
+    ]);
+    setEditCities(Array.isArray(citiesRes) ? citiesRes : []);
+    // Build suburb list for current city
+    if (Array.isArray(suburbsRes)) {
+      const subs = suburbsRes.filter((row: { city: { id: string }; suburb: { id: string; name: string } | null }) => row.city.id === (c.cityId ?? "") && row.suburb).map((row: { suburb: { id: string; name: string } }) => row.suburb!);
+      setEditSuburbs(subs);
+    }
+    setEditingCustomer(true);
+  }
+
+  function onEditCityChange(cityId: string, allRows: { city: { id: string }; suburb: { id: string; name: string } | null }[]) {
+    setEditCForm((f) => ({ ...f, cityId, suburbId: "" }));
+    const subs = allRows.filter((row) => row.city.id === cityId && row.suburb).map((row) => row.suburb!);
+    setEditSuburbs(subs);
+  }
+
+  async function saveCustomerEdit(e: React.FormEvent) {
+    e.preventDefault();
+    setSavingCustomer(true);
+    await fetch(`/api/customers/${id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ ...editCForm, email: editCForm.email || null, location: editCForm.location || null, cityId: editCForm.cityId || null, suburbId: editCForm.suburbId || null }),
+    });
+    setSavingCustomer(false);
+    setEditingCustomer(false);
+    loadProfile();
+  }
+
+  function openDocEdit(doc: Document) {
+    setEditDForm({
+      documentNumber: doc.documentNumber ?? "",
+      placeOfIssue: doc.placeOfIssue ?? "",
+      issueDate: doc.issueDate ?? "",
+      expiryDate: doc.expiryDate ?? "",
+      renewalDates: (doc.renewalDates ?? []).filter(Boolean),
+      notes: doc.notes ?? "",
+    });
+    setEditingDoc(doc);
+  }
+
+  async function saveDocEdit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!editingDoc) return;
+    setSavingDoc(true);
+    await fetch(`/api/documents/${editingDoc.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ ...editDForm, documentNumber: editDForm.documentNumber || null, placeOfIssue: editDForm.placeOfIssue || null, issueDate: editDForm.issueDate || null, expiryDate: editDForm.expiryDate || null, notes: editDForm.notes || null, renewalDates: editDForm.renewalDates.filter(Boolean) }),
+    });
+    setSavingDoc(false);
+    setEditingDoc(null);
+    loadProfile();
+  }
+
   if (loading || !profile) {
     return <div className="animate-pulse space-y-4"><div className="h-8 w-48 bg-slate-200 rounded" /><div className="h-40 bg-slate-200 rounded-xl" /></div>;
   }
@@ -168,12 +246,20 @@ export default function CustomerProfilePage({ params }: { params: Promise<{ id: 
             </p>
           </div>
         </div>
-        <button
-          onClick={() => setShowPayment(true)}
-          className="flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white px-3 py-2 rounded-lg text-sm font-medium"
-        >
-          <CreditCard className="w-4 h-4" /> Record Payment
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={openCustomerEdit}
+            className="flex items-center gap-1.5 border border-slate-300 hover:border-slate-400 text-slate-600 hover:text-slate-800 px-3 py-2 rounded-lg text-sm font-medium"
+          >
+            <Pencil className="w-3.5 h-3.5" /> Edit
+          </button>
+          <button
+            onClick={() => setShowPayment(true)}
+            className="flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white px-3 py-2 rounded-lg text-sm font-medium"
+          >
+            <CreditCard className="w-4 h-4" /> Record Payment
+          </button>
+        </div>
       </div>
 
       {/* Balance summary */}
@@ -269,6 +355,9 @@ export default function CustomerProfilePage({ params }: { params: Promise<{ id: 
                         {doc ? (
                           <div className="flex items-center gap-2">
                             <ExpiryDateBadge expiryDate={doc.expiryDate} />
+                            <button onClick={() => openDocEdit(doc)} className="text-slate-400 hover:text-blue-600" title="Edit details">
+                              <Pencil className="w-3.5 h-3.5" />
+                            </button>
                             <button
                               onClick={() => downloadDoc(doc.fileKey)}
                               className="text-slate-400 hover:text-blue-600"
@@ -359,6 +448,7 @@ export default function CustomerProfilePage({ params }: { params: Promise<{ id: 
                         {doc ? (
                           <div className="flex items-center gap-2">
                             <ExpiryDateBadge expiryDate={doc.expiryDate} />
+                            <button onClick={() => openDocEdit(doc)} className="text-slate-400 hover:text-blue-600" title="Edit details"><Pencil className="w-3.5 h-3.5" /></button>
                             <button onClick={() => downloadDoc(doc.fileKey)} className="text-slate-400 hover:text-blue-600"><Download className="w-3.5 h-3.5" /></button>
                             <button onClick={() => setUploadTarget({ entityType: "driver", entityId: d.id, entityRef: d.fullName, isRenewal: true })} className="text-slate-400 hover:text-green-600"><RefreshCw className="w-3.5 h-3.5" /></button>
                           </div>
@@ -399,6 +489,131 @@ export default function CustomerProfilePage({ params }: { params: Promise<{ id: 
           onClose={() => setShowPayment(false)}
           onSuccess={() => { setShowPayment(false); loadProfile(); }}
         />
+      )}
+
+      {/* Customer Edit Modal */}
+      {editingCustomer && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg max-h-[90vh] overflow-auto">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200">
+              <h2 className="text-base font-semibold text-slate-900">Edit Customer Details</h2>
+              <button onClick={() => setEditingCustomer(false)} className="text-slate-400 hover:text-slate-600"><X className="w-5 h-5" /></button>
+            </div>
+            <form onSubmit={saveCustomerEdit} className="p-6 space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div className="col-span-2">
+                  <label className="block text-sm font-medium text-slate-700 mb-1">Full Name *</label>
+                  <input required value={editCForm.name} onChange={(e) => setEditCForm((f) => ({ ...f, name: e.target.value }))} className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">Phone *</label>
+                  <input required value={editCForm.tel} onChange={(e) => setEditCForm((f) => ({ ...f, tel: e.target.value }))} className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">Email</label>
+                  <input type="email" value={editCForm.email} onChange={(e) => setEditCForm((f) => ({ ...f, email: e.target.value }))} className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">Customer Type</label>
+                  <select value={editCForm.customerType} onChange={(e) => setEditCForm((f) => ({ ...f, customerType: e.target.value as "INDIVIDUAL" | "AGENCY" }))} className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm">
+                    <option value="INDIVIDUAL">Individual</option>
+                    <option value="AGENCY">Agency</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">Location / Address</label>
+                  <input value={editCForm.location} onChange={(e) => setEditCForm((f) => ({ ...f, location: e.target.value }))} className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">City</label>
+                  <select
+                    value={editCForm.cityId}
+                    onChange={(e) => {
+                      fetch("/api/admin/cities?withSuburbs=true").then((r) => r.json()).then((rows) => onEditCityChange(e.target.value, rows));
+                    }}
+                    className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm"
+                  >
+                    <option value="">— No city —</option>
+                    {editCities.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">Suburb</label>
+                  <select value={editCForm.suburbId} onChange={(e) => setEditCForm((f) => ({ ...f, suburbId: e.target.value }))} className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm" disabled={!editCForm.cityId}>
+                    <option value="">— No suburb —</option>
+                    {editSuburbs.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
+                  </select>
+                </div>
+              </div>
+              <div className="flex gap-3 pt-2">
+                <button type="button" onClick={() => setEditingCustomer(false)} className="flex-1 border border-slate-300 rounded-lg text-sm py-2 hover:bg-slate-50">Cancel</button>
+                <button type="submit" disabled={savingCustomer} className="flex-1 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white rounded-lg text-sm py-2 font-medium">{savingCustomer ? "Saving..." : "Save Changes"}</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Document Edit Modal */}
+      {editingDoc && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg max-h-[90vh] overflow-auto">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200">
+              <div>
+                <h2 className="text-base font-semibold text-slate-900">Edit Document</h2>
+                <p className="text-xs text-slate-500 mt-0.5">{editingDoc.documentTypeName}</p>
+              </div>
+              <button onClick={() => setEditingDoc(null)} className="text-slate-400 hover:text-slate-600"><X className="w-5 h-5" /></button>
+            </div>
+            <form onSubmit={saveDocEdit} className="p-6 space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">Document Number</label>
+                  <input value={editDForm.documentNumber} onChange={(e) => setEditDForm((f) => ({ ...f, documentNumber: e.target.value }))} className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm" placeholder="e.g. POL-2024-001" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">Place of Issue</label>
+                  <input value={editDForm.placeOfIssue} onChange={(e) => setEditDForm((f) => ({ ...f, placeOfIssue: e.target.value }))} className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm" placeholder="e.g. Accra DVLA" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">Issue Date</label>
+                  <input type="date" value={editDForm.issueDate} onChange={(e) => setEditDForm((f) => ({ ...f, issueDate: e.target.value }))} className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">Expiry Date</label>
+                  <input type="date" value={editDForm.expiryDate} onChange={(e) => setEditDForm((f) => ({ ...f, expiryDate: e.target.value }))} className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm" />
+                </div>
+              </div>
+
+              <div>
+                <div className="flex items-center justify-between mb-2">
+                  <label className="text-sm font-medium text-slate-700">Renewal Date(s)</label>
+                  <button type="button" onClick={() => setEditDForm((f) => ({ ...f, renewalDates: [...f.renewalDates, ""] }))} className="text-xs text-blue-600 hover:text-blue-700 flex items-center gap-1">
+                    <Plus className="w-3 h-3" /> Add date
+                  </button>
+                </div>
+                <div className="space-y-2">
+                  {editDForm.renewalDates.map((rd, i) => (
+                    <div key={i} className="flex items-center gap-2">
+                      <input type="date" value={rd} onChange={(e) => setEditDForm((f) => ({ ...f, renewalDates: f.renewalDates.map((d, idx) => idx === i ? e.target.value : d) }))} className="flex-1 px-3 py-2 border border-slate-300 rounded-lg text-sm" />
+                      <button type="button" onClick={() => setEditDForm((f) => ({ ...f, renewalDates: f.renewalDates.filter((_, idx) => idx !== i) }))} className="text-slate-400 hover:text-red-500"><Trash2 className="w-4 h-4" /></button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Notes</label>
+                <textarea value={editDForm.notes} onChange={(e) => setEditDForm((f) => ({ ...f, notes: e.target.value }))} rows={2} className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm resize-none" placeholder="Any additional notes..." />
+              </div>
+
+              <div className="flex gap-3 pt-2">
+                <button type="button" onClick={() => setEditingDoc(null)} className="flex-1 border border-slate-300 rounded-lg text-sm py-2 hover:bg-slate-50">Cancel</button>
+                <button type="submit" disabled={savingDoc} className="flex-1 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white rounded-lg text-sm py-2 font-medium">{savingDoc ? "Saving..." : "Save Changes"}</button>
+              </div>
+            </form>
+          </div>
+        </div>
       )}
     </div>
   );

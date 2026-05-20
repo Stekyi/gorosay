@@ -25,6 +25,7 @@ export async function GET(
       issueDate: documents.issueDate,
       expiryDate: documents.expiryDate,
       renewalDates: documents.renewalDates,
+      notes: documents.notes,
       entityRef: documents.entityRef,
       fileName: documents.fileName,
       fileKey: documents.fileKey,
