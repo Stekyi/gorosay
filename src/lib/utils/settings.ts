@@ -52,6 +52,7 @@ export const SETTING_KEYS = {
   EMAIL_APP_PASSWORD: "email_app_password",
   EMAIL_SMTP_HOST: "email_smtp_host",
   EMAIL_SMTP_PORT: "email_smtp_port",
+  EMAIL_SMTP_USERNAME: "email_smtp_username",
   EMAIL_ENABLED: "email_enabled",
   NOTIFY_DAYS_BEFORE: "notify_days_before",
 } as const;

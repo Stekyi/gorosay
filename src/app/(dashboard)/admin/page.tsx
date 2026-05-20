@@ -36,9 +36,10 @@ const SETTING_LABELS: Record<string, { label: string; type: string; section: str
   sms_enabled: { label: "SMS Notifications Enabled", type: "toggle", section: "sms" },
   email_from_name: { label: "Sender Name (e.g. Tiwaak)", type: "text", section: "email" },
   email_from_address: { label: "From Address (e.g. info@tiwaak.com)", type: "email", section: "email" },
-  email_app_password: { label: "SMTP Password / App Password", type: "password", section: "email" },
-  email_smtp_host: { label: "SMTP Host (e.g. smtp.zoho.com)", type: "text", section: "email" },
-  email_smtp_port: { label: "SMTP Port (465 for SSL, 587 for TLS)", type: "text", section: "email" },
+  email_smtp_username: { label: "SMTP Username (use 'resend' for Resend.com)", type: "text", section: "email" },
+  email_app_password: { label: "SMTP Password / API Key", type: "password", section: "email" },
+  email_smtp_host: { label: "SMTP Host", type: "text", section: "email" },
+  email_smtp_port: { label: "SMTP Port (587 for TLS, 465 for SSL)", type: "text", section: "email" },
   email_enabled: { label: "Email Notifications Enabled", type: "toggle", section: "email" },
   notify_days_before: { label: "Alert Days Before (comma-separated, e.g. 5,1)", type: "text", section: "notifications" },
 };
@@ -191,7 +192,7 @@ export default function AdminPage() {
   const sections = [
     { id: "pricing", label: "Pricing", icon: DollarSign, keys: ["price_new_vehicle", "price_new_driver", "price_renewal"] },
     { id: "sms", label: "SMS Gateway", icon: MessageSquare, keys: ["sms_provider", "sms_api_key", "sms_sender_id", "sms_enabled"] },
-    { id: "email", label: "Email", icon: Mail, keys: ["email_from_name", "email_from_address", "email_app_password", "email_smtp_host", "email_smtp_port", "email_enabled"] },
+    { id: "email", label: "Email", icon: Mail, keys: ["email_from_name", "email_from_address", "email_smtp_username", "email_app_password", "email_smtp_host", "email_smtp_port", "email_enabled"] },
     { id: "notifications", label: "Notification Schedule", icon: Settings, keys: ["notify_days_before"] },
   ];
 

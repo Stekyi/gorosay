@@ -2,24 +2,24 @@ import nodemailer from "nodemailer";
 import { getSetting, SETTING_KEYS } from "@/lib/utils/settings";
 
 async function getTransport() {
-  const [fromAddress, appPassword, smtpHost, smtpPort] = await Promise.all([
+  const [fromAddress, appPassword, smtpHost, smtpPort, smtpUsername] = await Promise.all([
     getSetting(SETTING_KEYS.EMAIL_FROM_ADDRESS),
     getSetting(SETTING_KEYS.EMAIL_APP_PASSWORD),
     getSetting(SETTING_KEYS.EMAIL_SMTP_HOST),
     getSetting(SETTING_KEYS.EMAIL_SMTP_PORT),
+    getSetting(SETTING_KEYS.EMAIL_SMTP_USERNAME),
   ]);
 
-  const host = smtpHost || "smtp.zoho.com";
-  const port = parseInt(smtpPort || "465", 10);
+  const host = smtpHost || "smtp.resend.com";
+  const port = parseInt(smtpPort || "587", 10);
+  // Some providers (e.g. Resend) use a fixed username; others use the from address
+  const user = smtpUsername || fromAddress || "";
 
   return nodemailer.createTransport({
     host,
     port,
     secure: port === 465,
-    auth: {
-      user: fromAddress ?? "",
-      pass: appPassword ?? "",
-    },
+    auth: { user, pass: appPassword ?? "" },
   });
 }
 

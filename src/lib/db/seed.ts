@@ -16,8 +16,9 @@ const DEFAULT_SETTINGS = [
   { key: "email_from_name", value: "Tiwaak" },
   { key: "email_from_address", value: "info@tiwaak.com" },
   { key: "email_app_password", value: "" },
-  { key: "email_smtp_host", value: "smtp.zoho.com" },
-  { key: "email_smtp_port", value: "465" },
+  { key: "email_smtp_username", value: "resend" },
+  { key: "email_smtp_host", value: "smtp.resend.com" },
+  { key: "email_smtp_port", value: "587" },
   { key: "email_enabled", value: "true" },
   { key: "notify_days_before", value: "5,1" },
 ];
