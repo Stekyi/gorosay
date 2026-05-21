@@ -48,7 +48,7 @@ export default function NewCustomerPage() {
     return res.json();
   }
 
-  async function handleSubmit(e: React.FormEvent) {
+  async function handleSubmit(e: React.SyntheticEvent) {
     e.preventDefault();
     setSaving(true);
     setError("");

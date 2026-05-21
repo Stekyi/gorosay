@@ -40,10 +40,44 @@
       "Bash(git config *)",
       "Bash(git check-ignore *)",
       "Bash(git add *)",
-      "Bash(cmd.exe /c \"rd /s /q D:\\\\gorosay\\\\.build 2>nul\")"
+      "Bash(cmd.exe /c \"rd /s /q D:\\\\gorosay\\\\.build 2>nul\")",
+      "Bash(git commit -m ' *)",
+      "Bash(git branch *)",
+      "Bash(git push *)",
+      "Bash(node -e \"const c=require\\('crypto'\\); console.log\\('AUTH_SECRET=' + c.randomBytes\\(32\\).toString\\('base64'\\)\\); console.log\\('CRON_SECRET=' + c.randomBytes\\(24\\).toString\\('hex'\\)\\);\")",
+      "Bash(gh auth *)",
+      "Bash(npx drizzle-kit *)",
+      "Bash(npx tsx *)",
+      "Bash(node -e ' *)",
+      "Bash(cmd.exe /c \"set DATABASE_URL=postgresql://neondb_owner:npg_Bfj1yiIgXYl4@ep-crimson-pine-apariz3e.c-7.us-east-1.aws.neon.tech/neondb?sslmode=require && npx drizzle-kit push 2>&1\")",
+      "Bash(DATABASE_URL=\"postgresql://neondb_owner:npg_Bfj1yiIgXYl4@ep-crimson-pine-apariz3e.c-7.us-east-1.aws.neon.tech/neondb?sslmode=require\" npx drizzle-kit push)",
+      "Bash(DATABASE_URL=\"postgresql://neondb_owner:npg_Bfj1yiIgXYl4@ep-crimson-pine-apariz3e.c-7.us-east-1.aws.neon.tech/neondb?sslmode=require\" npx tsx src/lib/db/seed.ts)",
+      "Bash(git commit -m 'fix: add trustHost to NextAuth config for Vercel preview URLs *)",
+      "Bash(DATABASE_URL=postgresql://neondb_owner:npg_Bfj1yiIgXYl4@ep-crimson-pine-apariz3e.c-7.us-east-1.aws.neon.tech/neondb?sslmode=require node -e ' *)",
+      "Bash(DATABASE_URL=x node -e ' *)",
+      "WebSearch",
+      "Bash(python3 -c ' *)",
+      "Bash(New-Item -ItemType Directory -Force \"D:\\\\gorosay\\\\src\\\\app\\\\api\\\\admin\\\\email-logs\")",
+      "Bash(Out-Null)",
+      "Bash(Write-Output \"done\")",
+      "Bash(mkdir -p \"D:/gorosay/src/app/api/documents/[id]\" && echo \"done\")",
+      "Bash(node -e \"require\\('fs'\\).writeFileSync\\('D:/gorosay/src/components/layout/TopBar.tsx', require\\('fs'\\).readFileSync\\('D:/gorosay/src/components/layout/TopBar.tsx', 'utf8'\\).slice\\(0,1\\)\\); console.log\\('touched'\\);\")",
+      "Bash(node -e \"const p = require\\('./D:/gorosay/node_modules/next/package.json'\\); console.log\\(p.version\\);\")",
+      "Bash(node -e \"try { const m = require\\('./D:/gorosay/node_modules/next/dist/server/after.js'\\); console.log\\('after available'\\); } catch\\(e\\) { console.log\\('no after:', e.message\\); }\")",
+      "Bash(node -e \"const p = require\\('D:/gorosay/node_modules/next/package.json'\\); console.log\\(p.version\\);\")",
+      "Bash(node -e \"try { require\\('D:/gorosay/node_modules/next/dist/server/after.js'\\); console.log\\('after.js exists'\\); } catch\\(e\\) { console.log\\('not found'\\); }\")",
+      "Bash(node -e \"const s = require\\('D:/gorosay/node_modules/next/server.js'\\); console.log\\('after' in s ? 'after exported' : 'after NOT exported', Object.keys\\(s\\).filter\\(k=>k.toLowerCase\\(\\).includes\\('after'\\)\\)\\);\")",
+      "Bash(node -e \"console.log\\(require\\('fs'\\).readFileSync\\('D:/gorosay/node_modules/next/dist/docs/01-app/03-api-reference/04-functions/after.md', 'utf8'\\).slice\\(0, 1500\\)\\);\")",
+      "Bash(node scripts/update-smtp-port.mjs)",
+      "Bash(npx dotenv *)",
+      "Bash(node -r dotenv/config --require dotenv/config node_modules/.bin/drizzle-kit push --force)",
+      "PowerShell(cd d:\\\\gorosay; $env:DATABASE_URL = \\(Get-Content .env.local | Where-Object { $_ -match '^DATABASE_URL=' } | ForEach-Object { $_ -replace '^DATABASE_URL=','' }\\); npx drizzle-kit push --force 2>&1)",
+      "Bash(node scripts/create-triggers.mjs)",
+      "Bash(node -e \"const files=['src/components/payments/PaymentRecordModal.tsx','src/components/documents/DocumentUploadModal.tsx','src/app/\\(dashboard\\)/admin/page.tsx','src/app/\\(dashboard\\)/customers/[id]/page.tsx','src/app/\\(dashboard\\)/customers/new/page.tsx','src/components/layout/TopBar.tsx','src/app/\\(auth\\)/login/page.tsx'];const fs=require\\('fs'\\);let n=0;files.forEach\\(f=>{const c=fs.readFileSync\\(f,'utf8'\\);if\\(c.includes\\('React.FormEvent'\\)\\){fs.writeFileSync\\(f,c.replaceAll\\('React.FormEvent','React.SyntheticEvent'\\)\\);n++;}}\\);console.log\\('Updated',n,'files'\\);\")"
     ],
     "additionalDirectories": [
-      "d:\\gorosay\\src\\app\\(dashboard)\\customers"
+      "d:\\gorosay\\src\\app\\(dashboard)\\customers",
+      "D:\\gorosay\\src\\app\\api\\documents"
     ]
   }
 }

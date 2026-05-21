@@ -94,7 +94,7 @@ export default function AdminPage() {
     loadLogs();
   }, []);
 
-  async function createUser(e: React.FormEvent) {
+  async function createUser(e: React.SyntheticEvent) {
     e.preventDefault();
     setNewUserError("");
     if (newUser.password !== newUser.confirm) { setNewUserError("Passwords do not match."); return; }

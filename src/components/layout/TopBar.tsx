@@ -25,7 +25,7 @@ function ChangePasswordModal({ onClose }: { onClose: () => void }) {
   const [success, setSuccess] = useState(false);
   const [saving, setSaving] = useState(false);
 
-  async function handleSubmit(e: React.FormEvent) {
+  async function handleSubmit(e: React.SyntheticEvent) {
     e.preventDefault();
     setError("");
     if (form.next !== form.confirm) { setError("New passwords do not match."); return; }

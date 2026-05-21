@@ -71,7 +71,7 @@ export function DocumentUploadModal({
 
   const selectedSlug = documentTypes.find((d) => d.id === selectedDocType)?.slug ?? "";
 
-  async function handleSubmit(e: React.FormEvent) {
+  async function handleSubmit(e: React.SyntheticEvent) {
     e.preventDefault();
     if (!file || !selectedDocType) return;
 

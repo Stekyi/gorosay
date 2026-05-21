@@ -128,7 +128,7 @@ export default function CustomerProfilePage({ params }: { params: Promise<{ id: 
 
   useEffect(() => { loadProfile(); }, [id]);
 
-  async function handleAddVehicle(e: React.FormEvent) {
+  async function handleAddVehicle(e: React.SyntheticEvent) {
     e.preventDefault();
     setVehicleError("");
     const res = await fetch("/api/vehicles", {
@@ -143,7 +143,7 @@ export default function CustomerProfilePage({ params }: { params: Promise<{ id: 
     }
   }
 
-  async function handleAddDriver(e: React.FormEvent) {
+  async function handleAddDriver(e: React.SyntheticEvent) {
     e.preventDefault();
     setDriverError("");
     const res = await fetch("/api/drivers", {
@@ -191,7 +191,7 @@ export default function CustomerProfilePage({ params }: { params: Promise<{ id: 
     setEditSuburbs(subs);
   }
 
-  async function saveCustomerEdit(e: React.FormEvent) {
+  async function saveCustomerEdit(e: React.SyntheticEvent) {
     e.preventDefault();
     setSavingCustomer(true);
     await fetch(`/api/customers/${id}`, {
@@ -216,7 +216,7 @@ export default function CustomerProfilePage({ params }: { params: Promise<{ id: 
     setEditingDoc(doc);
   }
 
-  async function saveDocEdit(e: React.FormEvent) {
+  async function saveDocEdit(e: React.SyntheticEvent) {
     e.preventDefault();
     if (!editingDoc) return;
     setSavingDoc(true);

@@ -26,7 +26,7 @@ export function PaymentRecordModal({
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
 
-  async function handleSubmit(e: React.FormEvent) {
+  async function handleSubmit(e: React.SyntheticEvent) {
     e.preventDefault();
     setSaving(true);
     setError("");
@@ -76,9 +76,10 @@ export function PaymentRecordModal({
         <form onSubmit={handleSubmit} className="p-6 space-y-4">
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">
-                Amount (GHC) <span className="text-red-500">*</span>
+              <label className="block text-sm font-medium text-slate-700 mb-0.5">
+                Amount Received (GHC) <span className="text-red-500">*</span>
               </label>
+              <p className="text-xs text-slate-400 mb-1">How much cash/transfer was collected</p>
               <input
                 type="number"
                 step="0.01"
@@ -91,9 +92,10 @@ export function PaymentRecordModal({
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">
-                Date Paid <span className="text-red-500">*</span>
+              <label className="block text-sm font-medium text-slate-700 mb-0.5">
+                Date of Payment <span className="text-red-500">*</span>
               </label>
+              <p className="text-xs text-slate-400 mb-1">When the money was actually received</p>
               <input
                 type="date"
                 value={paidAt}
@@ -105,37 +107,39 @@ export function PaymentRecordModal({
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1">
+            <label className="block text-sm font-medium text-slate-700 mb-0.5">
               Payment Method <span className="text-red-500">*</span>
             </label>
+            <p className="text-xs text-slate-400 mb-1.5">How the customer paid</p>
             <div className="grid grid-cols-3 gap-2">
               {(["CASH", "MOBILE_MONEY", "BANK_TRANSFER"] as const).map((m) => (
                 <button
                   key={m}
                   type="button"
                   onClick={() => setMethod(m)}
-                  className={`px-3 py-2 rounded-lg text-xs font-medium border transition-colors ${
+                  className={`px-3 py-2.5 rounded-lg text-xs font-medium border transition-colors ${
                     method === m
                       ? "bg-blue-600 text-white border-blue-600"
                       : "border-slate-300 text-slate-600 hover:border-slate-400"
                   }`}
                 >
-                  {m === "MOBILE_MONEY" ? "MoMo" : m === "BANK_TRANSFER" ? "Bank" : "Cash"}
+                  {m === "MOBILE_MONEY" ? "Mobile Money" : m === "BANK_TRANSFER" ? "Bank Transfer" : "Cash"}
                 </button>
               ))}
             </div>
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1">
+            <label className="block text-sm font-medium text-slate-700 mb-0.5">
               Reference / Transaction ID
             </label>
+            <p className="text-xs text-slate-400 mb-1">MoMo transaction code, bank reference, receipt number, etc.</p>
             <input
               type="text"
               value={reference}
               onChange={(e) => setReference(e.target.value)}
               className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-              placeholder="e.g. GH123456789"
+              placeholder="e.g. GH-1234567890"
             />
           </div>
 
