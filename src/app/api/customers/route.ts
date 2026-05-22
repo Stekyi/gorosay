@@ -113,6 +113,6 @@ export async function POST(req: NextRequest) {
     })
     .returning();
 
-  after(() => processAlerts().catch(() => {}));
+  after(() => processAlerts().catch((err) => console.error("[after] processAlerts error:", err)));
   return NextResponse.json(customer, { status: 201 });
 }

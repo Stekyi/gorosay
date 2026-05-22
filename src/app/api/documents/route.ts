@@ -169,7 +169,7 @@ export async function POST(req: NextRequest) {
     .returning();
 
   // Trigger created an alert row; process it after response is sent
-  after(() => processAlerts().catch(() => {}));
+  after(() => processAlerts().catch((err) => console.error("[after] processAlerts error:", err)));
 
   return NextResponse.json(doc, { status: 201 });
 }

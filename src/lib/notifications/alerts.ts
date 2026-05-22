@@ -6,17 +6,31 @@ import { sendWelcomeEmail, sendDocumentUploadEmail } from "./email";
 import { getSetting, SETTING_KEYS } from "@/lib/utils/settings";
 
 export async function processAlerts(): Promise<void> {
-  const emailEnabled = await getSetting(SETTING_KEYS.EMAIL_ENABLED);
+  let emailEnabled: string | null;
+  try {
+    emailEnabled = await getSetting(SETTING_KEYS.EMAIL_ENABLED);
+  } catch (err) {
+    console.error("[processAlerts] getSetting failed:", err);
+    throw err;
+  }
   if (emailEnabled === "false") return;
 
-  const pending = await db
-    .select()
-    .from(alerts)
-    .where(eq(alerts.status, "pending"))
-    .orderBy(asc(alerts.createdAt))
-    .limit(20);
+  let pending: (typeof alerts.$inferSelect)[];
+  try {
+    pending = await db
+      .select()
+      .from(alerts)
+      .where(eq(alerts.status, "pending"))
+      .orderBy(asc(alerts.createdAt))
+      .limit(20);
+  } catch (err) {
+    console.error("[processAlerts] DB query failed:", err);
+    throw err;
+  }
 
-  await Promise.all(pending.map(processOne));
+  if (pending.length === 0) return;
+
+  await Promise.allSettled(pending.map(processOne));
 }
 
 async function processOne(alert: typeof alerts.$inferSelect): Promise<void> {

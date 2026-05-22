@@ -384,7 +384,7 @@ export default function AdminPage() {
             >
               <t.icon className="w-4 h-4" />
               {t.label}
-              {t.id === "log" && logs.some((l) => l.status === "failed") && (
+              {t.id === "log" && logs.some((l) => l.status === "failed" || l.status === "pending") && (
                 <span className="w-1.5 h-1.5 rounded-full bg-red-500" />
               )}
             </button>
@@ -1010,14 +1010,14 @@ export default function AdminPage() {
               </div>
             </div>
             <div className="flex items-center gap-2">
-              {logs.some((l) => l.status === "failed") && (
+              {logs.some((l) => l.status === "failed" || l.status === "pending") && (
                 <button
                   onClick={retryFailed}
                   disabled={retrying}
                   className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-red-600 border border-red-200 hover:bg-red-50 disabled:opacity-50 transition-colors"
                 >
                   <RefreshCw className={`w-3.5 h-3.5 ${retrying ? "animate-spin" : ""}`} />
-                  {retrying ? "Retrying…" : "Retry Failed"}
+                  {retrying ? "Processing…" : "Send Pending & Failed"}
                 </button>
               )}
               <button
