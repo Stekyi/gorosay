@@ -31,6 +31,13 @@ export function PaymentRecordModal({
     setSaving(true);
     setError("");
 
+    const amt = parseFloat(amount);
+    if (outstanding > 0 && amt > outstanding + 0.005) {
+      setError(`Amount cannot exceed the outstanding balance of GHC ${outstanding.toFixed(2)}.`);
+      setSaving(false);
+      return;
+    }
+
     try {
       const res = await fetch("/api/payments", {
         method: "POST",
@@ -44,7 +51,10 @@ export function PaymentRecordModal({
           notes: notes || undefined,
         }),
       });
-      if (!res.ok) throw new Error("Failed to record payment");
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error(body.error ?? "Failed to record payment");
+      }
       onSuccess();
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Error saving payment");
@@ -84,6 +94,7 @@ export function PaymentRecordModal({
                 type="number"
                 step="0.01"
                 min="0.01"
+                max={outstanding > 0 ? outstanding.toFixed(2) : undefined}
                 value={amount}
                 onChange={(e) => setAmount(e.target.value)}
                 required

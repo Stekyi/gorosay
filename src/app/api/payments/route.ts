@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth/session";
 import { db } from "@/lib/db";
 import { paymentRecords, serviceCharges, customers } from "@/lib/db/schema";
-import { eq } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 import { z } from "zod";
 
 const createSchema = z.object({
@@ -25,6 +25,20 @@ export async function POST(req: NextRequest) {
   }
 
   const data = parsed.data;
+
+  // Reject overpayment
+  const [chargesRow, paidRow] = await Promise.all([
+    db.select({ total: sql<string>`COALESCE(SUM(amount_ghs::numeric), 0)` }).from(serviceCharges).where(eq(serviceCharges.customerId, data.customerId)),
+    db.select({ total: sql<string>`COALESCE(SUM(amount_ghs::numeric), 0)` }).from(paymentRecords).where(eq(paymentRecords.customerId, data.customerId)),
+  ]);
+  const outstanding = parseFloat(chargesRow[0].total) - parseFloat(paidRow[0].total);
+  if (outstanding > 0 && data.amountGhs > outstanding + 0.01) {
+    return NextResponse.json(
+      { error: `Payment of GHC ${data.amountGhs.toFixed(2)} exceeds outstanding balance of GHC ${outstanding.toFixed(2)}` },
+      { status: 422 }
+    );
+  }
+
   const [record] = await db
     .insert(paymentRecords)
     .values({
