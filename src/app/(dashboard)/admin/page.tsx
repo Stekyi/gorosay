@@ -79,7 +79,7 @@ const SETTING_LABELS: Record<string, { label: string; type: string; hint?: strin
 const TABS = [
   { id: "settings", label: "Settings", icon: Settings },
   { id: "tenants", label: "Tenants", icon: Building2 },
-  { id: "staff", label: "Staff", icon: Users },
+  { id: "staff", label: "Admins", icon: Users },
   { id: "doctypes", label: "Document Types", icon: FileText },
   { id: "log", label: "Activity Log", icon: ScrollText },
 ] as const;
@@ -113,6 +113,20 @@ export default function AdminPage() {
   const [showTenantPwd, setShowTenantPwd] = useState(false);
   const [tenantResetId, setTenantResetId] = useState<string | null>(null);
   const [resettingTenant, setResettingTenant] = useState(false);
+  const [selectedTenantId, setSelectedTenantId] = useState<string | null>(null);
+  const [tenantDetail, setTenantDetail] = useState<{
+    tenant: Tenant;
+    users: StaffUser[];
+    revenue: { totalCharged: number; totalPaid: number; outstanding: number };
+  } | null>(null);
+  const [tenantDetailLoading, setTenantDetailLoading] = useState(false);
+  const [showAddTenantUser, setShowAddTenantUser] = useState(false);
+  const [newTenantUser, setNewTenantUser] = useState({ name: "", email: "", password: "" });
+  const [newTenantUserError, setNewTenantUserError] = useState("");
+  const [addingTenantUser, setAddingTenantUser] = useState(false);
+  const [showTenantUserPwd, setShowTenantUserPwd] = useState(false);
+  const [tenantUserResetTarget, setTenantUserResetTarget] = useState<StaffUser | null>(null);
+  const [tenantUserResetPwd, setTenantUserResetPwd] = useState("");
 
   function loadLogs() {
     setLogsLoading(true);
@@ -177,6 +191,7 @@ export default function AdminPage() {
       body: JSON.stringify({ id: tenant.id, isActive: !tenant.isActive }),
     });
     setTenants((prev) => prev.map((t) => t.id === tenant.id ? { ...t, isActive: !tenant.isActive } : t));
+    setTenantDetail((prev) => prev && prev.tenant.id === tenant.id ? { ...prev, tenant: { ...prev.tenant, isActive: !tenant.isActive } } : prev);
   }
 
   async function factoryResetTenant() {
@@ -192,6 +207,54 @@ export default function AdminPage() {
     } finally {
       setResettingTenant(false);
     }
+  }
+
+  async function openTenantDetail(id: string) {
+    setSelectedTenantId(id);
+    setTenantDetail(null);
+    setTenantDetailLoading(true);
+    setShowAddTenantUser(false);
+    setNewTenantUser({ name: "", email: "", password: "" });
+    setNewTenantUserError("");
+    try {
+      const res = await fetch(`/api/admin/tenants/${id}`);
+      const data = await res.json();
+      if (res.ok) setTenantDetail(data);
+    } finally {
+      setTenantDetailLoading(false);
+    }
+  }
+
+  async function addTenantUser(e: React.SyntheticEvent) {
+    e.preventDefault();
+    if (!selectedTenantId) return;
+    setNewTenantUserError("");
+    if (newTenantUser.password.length < 8) { setNewTenantUserError("Password must be at least 8 characters."); return; }
+    setAddingTenantUser(true);
+    const res = await fetch(`/api/admin/tenants/${selectedTenantId}/users`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(newTenantUser),
+    });
+    const data = await res.json();
+    setAddingTenantUser(false);
+    if (!res.ok) { setNewTenantUserError(typeof data.error === "string" ? data.error : "Failed to create user."); return; }
+    setTenantDetail((prev) => prev ? { ...prev, users: [...prev.users, data] } : prev);
+    setNewTenantUser({ name: "", email: "", password: "" });
+    setShowAddTenantUser(false);
+    loadTenants();
+  }
+
+  async function toggleTenantUser(user: StaffUser) {
+    await fetch("/api/admin/users", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id: user.id, isActive: !user.isActive }) });
+    setTenantDetail((prev) => prev ? { ...prev, users: prev.users.map((u) => u.id === user.id ? { ...u, isActive: !u.isActive } : u) } : prev);
+  }
+
+  async function resetTenantUserPassword() {
+    if (!tenantUserResetTarget || tenantUserResetPwd.length < 8) return;
+    await fetch("/api/admin/users", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id: tenantUserResetTarget.id, password: tenantUserResetPwd }) });
+    setTenantUserResetTarget(null);
+    setTenantUserResetPwd("");
   }
 
   useEffect(() => {
@@ -394,7 +457,7 @@ export default function AdminPage() {
       )}
 
       {/* ── TENANTS TAB ── */}
-      {tab === "tenants" && (
+      {tab === "tenants" && !selectedTenantId && (
         <div className="space-y-4">
           <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden">
             <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100">
@@ -475,7 +538,11 @@ export default function AdminPage() {
 
             <div className="divide-y divide-slate-100">
               {tenants.map((tenant) => (
-                <div key={tenant.id} className="flex items-center gap-4 px-5 py-4">
+                <button
+                  key={tenant.id}
+                  onClick={() => openTenantDetail(tenant.id)}
+                  className="w-full flex items-center gap-4 px-5 py-4 hover:bg-slate-50/70 transition-colors text-left"
+                >
                   <div className="w-10 h-10 rounded-xl bg-blue-100 flex items-center justify-center flex-shrink-0">
                     <span className="text-xs font-bold text-blue-700 font-mono">{tenant.code}</span>
                   </div>
@@ -489,29 +556,208 @@ export default function AdminPage() {
                       <p className="text-xs text-slate-400 mt-0.5 truncate">{[tenant.contactEmail, tenant.contactTel].filter(Boolean).join(" · ")}</p>
                     )}
                   </div>
-                  <div className="flex items-center gap-2 flex-shrink-0">
+                  <svg className="w-4 h-4 text-slate-400 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
+                </button>
+              ))}
+              {tenants.length === 0 && <p className="text-sm text-slate-400 text-center py-6">No tenants yet. Create one to get started.</p>}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── TENANT DETAIL VIEW ── */}
+      {tab === "tenants" && selectedTenantId && (
+        <div className="space-y-4">
+          {/* Back + header */}
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => { setSelectedTenantId(null); setTenantDetail(null); }}
+              className="flex items-center gap-1.5 text-sm text-slate-500 hover:text-slate-900 transition-colors"
+            >
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
+              All Tenants
+            </button>
+            {tenantDetail && (
+              <>
+                <span className="text-slate-300">/</span>
+                <span className="text-sm font-semibold text-slate-900">{tenantDetail.tenant.name}</span>
+                <span className="text-xs font-mono bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full">{tenantDetail.tenant.code}</span>
+                {!tenantDetail.tenant.isActive && <span className="text-xs bg-red-100 text-red-600 px-1.5 py-0.5 rounded-full">Inactive</span>}
+              </>
+            )}
+          </div>
+
+          {tenantDetailLoading && (
+            <div className="bg-white rounded-2xl border border-slate-200 p-10 flex items-center justify-center">
+              <div className="w-6 h-6 border-2 border-blue-600 border-t-transparent rounded-full animate-spin" />
+            </div>
+          )}
+
+          {tenantDetail && (
+            <>
+              {/* Revenue summary */}
+              <div className="grid grid-cols-3 gap-4">
+                <div className="bg-white rounded-2xl border border-slate-200 p-5">
+                  <p className="text-xs text-slate-500 mb-1">Total Charged</p>
+                  <p className="text-2xl font-bold text-slate-900">GHC {tenantDetail.revenue.totalCharged.toFixed(2)}</p>
+                  <p className="text-xs text-slate-400 mt-1">Service fees billed</p>
+                </div>
+                <div className="bg-white rounded-2xl border border-slate-200 p-5">
+                  <p className="text-xs text-slate-500 mb-1">Total Received</p>
+                  <p className="text-2xl font-bold text-emerald-600">GHC {tenantDetail.revenue.totalPaid.toFixed(2)}</p>
+                  <p className="text-xs text-slate-400 mt-1">Payments recorded</p>
+                </div>
+                <div className={`rounded-2xl border p-5 ${tenantDetail.revenue.outstanding > 0 ? "bg-amber-50 border-amber-200" : "bg-white border-slate-200"}`}>
+                  <p className="text-xs text-slate-500 mb-1">Outstanding</p>
+                  <p className={`text-2xl font-bold ${tenantDetail.revenue.outstanding > 0 ? "text-amber-600" : "text-slate-400"}`}>
+                    GHC {tenantDetail.revenue.outstanding.toFixed(2)}
+                  </p>
+                  <p className="text-xs text-slate-400 mt-1">Unpaid balance</p>
+                </div>
+              </div>
+
+              {/* Tenant info + controls */}
+              <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden">
+                <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100">
+                  <div className="flex items-center gap-3">
+                    <div className="w-8 h-8 rounded-xl bg-blue-100 flex items-center justify-center">
+                      <Building2 className="w-4 h-4 text-blue-600" />
+                    </div>
+                    <h3 className="font-semibold text-slate-900 text-sm">Tenant Details</h3>
+                  </div>
+                  <div className="flex items-center gap-2">
                     <button
-                      onClick={() => setTenantResetId(tenant.id)}
+                      onClick={() => { setTenantResetId(selectedTenantId); }}
                       className="text-xs text-slate-400 hover:text-red-600 px-2.5 py-1.5 rounded-lg border border-slate-200 hover:border-red-200 transition-colors"
                     >
                       Reset Data
                     </button>
                     <button
-                      onClick={() => toggleTenant(tenant)}
+                      onClick={() => toggleTenant(tenantDetail.tenant)}
                       className={`text-xs px-2.5 py-1.5 rounded-lg font-medium border transition-colors ${
-                        tenant.isActive
+                        tenantDetail.tenant.isActive
                           ? "bg-green-50 text-green-700 border-green-200 hover:bg-red-50 hover:text-red-700 hover:border-red-200"
                           : "bg-slate-50 text-slate-500 border-slate-200 hover:bg-green-50 hover:text-green-700 hover:border-green-200"
                       }`}
                     >
-                      {tenant.isActive ? "Active" : "Inactive"}
+                      {tenantDetail.tenant.isActive ? "Active" : "Inactive"}
                     </button>
                   </div>
                 </div>
-              ))}
-              {tenants.length === 0 && <p className="text-sm text-slate-400 text-center py-6">No tenants yet. Create one to get started.</p>}
-            </div>
-          </div>
+                <div className="px-5 py-4 grid grid-cols-2 gap-4">
+                  <div>
+                    <p className="text-xs text-slate-400 uppercase tracking-wide mb-0.5">Company Name</p>
+                    <p className="text-sm text-slate-900">{tenantDetail.tenant.name}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-slate-400 uppercase tracking-wide mb-0.5">Tenant Code</p>
+                    <p className="text-sm font-mono text-slate-900">{tenantDetail.tenant.code}</p>
+                  </div>
+                  {tenantDetail.tenant.contactEmail && (
+                    <div>
+                      <p className="text-xs text-slate-400 uppercase tracking-wide mb-0.5">Contact Email</p>
+                      <p className="text-sm text-slate-900">{tenantDetail.tenant.contactEmail}</p>
+                    </div>
+                  )}
+                  {tenantDetail.tenant.contactTel && (
+                    <div>
+                      <p className="text-xs text-slate-400 uppercase tracking-wide mb-0.5">Contact Tel</p>
+                      <p className="text-sm text-slate-900">{tenantDetail.tenant.contactTel}</p>
+                    </div>
+                  )}
+                  <div>
+                    <p className="text-xs text-slate-400 uppercase tracking-wide mb-0.5">Created</p>
+                    <p className="text-sm text-slate-900">{new Date(tenantDetail.tenant.createdAt).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" })}</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Users */}
+              <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden">
+                <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100">
+                  <div className="flex items-center gap-3">
+                    <div className="w-8 h-8 rounded-xl bg-slate-100 flex items-center justify-center">
+                      <Users className="w-4 h-4 text-slate-600" />
+                    </div>
+                    <div>
+                      <h3 className="font-semibold text-slate-900 text-sm">Clerk Accounts</h3>
+                      <p className="text-xs text-slate-500">{tenantDetail.users.length} user{tenantDetail.users.length !== 1 ? "s" : ""}</p>
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => { setShowAddTenantUser((v) => !v); setNewTenantUserError(""); }}
+                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
+                      showAddTenantUser ? "bg-slate-100 text-slate-600" : "bg-blue-600 text-white hover:bg-blue-700"
+                    }`}
+                  >
+                    {showAddTenantUser ? <><X className="w-3.5 h-3.5" /> Cancel</> : <><Plus className="w-3.5 h-3.5" /> Add User</>}
+                  </button>
+                </div>
+
+                {showAddTenantUser && (
+                  <form onSubmit={addTenantUser} className="p-5 border-b border-slate-100 bg-blue-50/60">
+                    <div className="grid grid-cols-2 gap-3 mb-3">
+                      <div>
+                        <label className="block text-xs text-slate-600 mb-1">Full Name</label>
+                        <input required value={newTenantUser.name} onChange={(e) => setNewTenantUser((u) => ({ ...u, name: e.target.value }))} className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm bg-white" placeholder="Ama Owusu" />
+                      </div>
+                      <div>
+                        <label className="block text-xs text-slate-600 mb-1">Email Address</label>
+                        <input required type="email" value={newTenantUser.email} onChange={(e) => setNewTenantUser((u) => ({ ...u, email: e.target.value }))} className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm bg-white" placeholder="ama@example.com" />
+                      </div>
+                      <div className="relative">
+                        <label className="block text-xs text-slate-600 mb-1">Password (min 8 chars)</label>
+                        <input required type={showTenantUserPwd ? "text" : "password"} value={newTenantUser.password} onChange={(e) => setNewTenantUser((u) => ({ ...u, password: e.target.value }))} className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm bg-white pr-9" placeholder="••••••••" />
+                        <button type="button" onClick={() => setShowTenantUserPwd((v) => !v)} className="absolute right-2.5 top-7 text-slate-400 hover:text-slate-600">
+                          {showTenantUserPwd ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                        </button>
+                      </div>
+                    </div>
+                    {newTenantUserError && <p className="text-xs text-red-600 mb-2">{newTenantUserError}</p>}
+                    <button type="submit" disabled={addingTenantUser} className="px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white rounded-lg text-sm font-medium">
+                      {addingTenantUser ? "Adding…" : "Add User"}
+                    </button>
+                  </form>
+                )}
+
+                <div className="divide-y divide-slate-100">
+                  {tenantDetail.users.map((user) => (
+                    <div key={user.id} className="flex items-center gap-4 px-5 py-4">
+                      <div className="w-9 h-9 rounded-full bg-slate-100 flex items-center justify-center text-sm font-bold text-slate-600 flex-shrink-0">
+                        {user.name.charAt(0).toUpperCase()}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm font-medium text-slate-900">{user.name}</span>
+                          {!user.isActive && <span className="text-xs bg-red-100 text-red-600 px-1.5 py-0.5 rounded-full">Inactive</span>}
+                        </div>
+                        <p className="text-xs text-slate-400 mt-0.5 truncate">{user.email}</p>
+                      </div>
+                      <div className="flex items-center gap-2 flex-shrink-0">
+                        <button
+                          onClick={() => { setTenantUserResetTarget(user); setTenantUserResetPwd(""); }}
+                          className="text-xs text-slate-500 hover:text-blue-600 px-2.5 py-1.5 rounded-lg border border-slate-200 hover:border-blue-300 transition-colors"
+                        >
+                          Reset PW
+                        </button>
+                        <button
+                          onClick={() => toggleTenantUser(user)}
+                          className={`text-xs px-2.5 py-1.5 rounded-lg font-medium border transition-colors ${
+                            user.isActive
+                              ? "bg-green-50 text-green-700 border-green-200 hover:bg-red-50 hover:text-red-700 hover:border-red-200"
+                              : "bg-slate-50 text-slate-500 border-slate-200 hover:bg-green-50 hover:text-green-700 hover:border-green-200"
+                          }`}
+                        >
+                          {user.isActive ? "Active" : "Inactive"}
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                  {tenantDetail.users.length === 0 && <p className="text-sm text-slate-400 text-center py-6">No users for this tenant.</p>}
+                </div>
+              </div>
+            </>
+          )}
         </div>
       )}
 
@@ -601,8 +847,8 @@ export default function AdminPage() {
                   <Users className="w-4 h-4 text-slate-600" />
                 </div>
                 <div>
-                  <h3 className="font-semibold text-slate-900 text-sm">Staff Accounts</h3>
-                  <p className="text-xs text-slate-500">{staffList.length} user{staffList.length !== 1 ? "s" : ""}</p>
+                  <h3 className="font-semibold text-slate-900 text-sm">Platform Admins</h3>
+                  <p className="text-xs text-slate-500">{staffList.length} account{staffList.length !== 1 ? "s" : ""} · no tenant restriction</p>
                 </div>
               </div>
               <button
@@ -617,7 +863,7 @@ export default function AdminPage() {
 
             {showCreateUser && (
               <form onSubmit={createUser} className="p-5 border-b border-slate-100 bg-blue-50/60">
-                <p className="text-xs font-medium text-blue-700 mb-3">New accounts are created as Clerk (no admin access)</p>
+                <p className="text-xs font-medium text-blue-700 mb-3">Platform accounts — no tenant filter, can see all data. Tenant clerks are managed inside each tenant.</p>
                 <div className="grid grid-cols-2 gap-3 mb-3">
                   <div>
                     <label className="block text-xs text-slate-600 mb-1">Full Name</label>
@@ -852,6 +1098,27 @@ export default function AdminPage() {
               </table>
             </div>
           )}
+        </div>
+      )}
+
+      {/* Tenant user reset password modal */}
+      {tenantUserResetTarget && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
+          <div className="bg-white rounded-2xl shadow-2xl p-6 w-full max-w-sm mx-4">
+            <h3 className="font-semibold text-slate-900 mb-1">Reset Password</h3>
+            <p className="text-xs text-slate-500 mb-4">New password for <strong>{tenantUserResetTarget.name}</strong></p>
+            <input
+              type="password"
+              placeholder="New password (min 8 chars)"
+              value={tenantUserResetPwd}
+              onChange={(e) => setTenantUserResetPwd(e.target.value)}
+              className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm mb-4 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+            <div className="flex gap-2">
+              <button onClick={resetTenantUserPassword} disabled={tenantUserResetPwd.length < 8} className="flex-1 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-300 text-white py-2 rounded-lg text-sm font-medium">Update</button>
+              <button onClick={() => setTenantUserResetTarget(null)} className="flex-1 border border-slate-200 rounded-lg text-sm py-2 hover:bg-slate-50">Cancel</button>
+            </div>
+          </div>
         </div>
       )}
 

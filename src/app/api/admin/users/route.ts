@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth/session";
 import { db } from "@/lib/db";
 import { staffUsers } from "@/lib/db/schema";
-import { eq } from "drizzle-orm";
+import { eq, isNull } from "drizzle-orm";
 import bcrypt from "bcryptjs";
 import { z } from "zod";
 
@@ -22,6 +22,7 @@ export async function GET() {
       createdAt: staffUsers.createdAt,
     })
     .from(staffUsers)
+    .where(isNull(staffUsers.tenantId))
     .orderBy(staffUsers.createdAt);
 
   return NextResponse.json(users);
