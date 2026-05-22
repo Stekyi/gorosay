@@ -88,6 +88,8 @@ export default function AdminPage() {
   const [docTypes, setDocTypes] = useState<DocType[]>([]);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [resetting, setResetting] = useState(false);
+  const [showResetConfirm, setShowResetConfirm] = useState(false);
   const [newDocType, setNewDocType] = useState({ name: "", appliesTo: "vehicle" });
   const [staffList, setStaffList] = useState<StaffUser[]>([]);
   const [showCreateUser, setShowCreateUser] = useState(false);
@@ -169,6 +171,17 @@ export default function AdminPage() {
     await fetch("/api/admin/settings", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(settings) });
     setSaving(false); setSaved(true);
     setTimeout(() => setSaved(false), 2000);
+  }
+
+  async function factoryReset() {
+    setResetting(true);
+    try {
+      await fetch("/api/admin/factory-reset", { method: "POST" });
+      setShowResetConfirm(false);
+      window.location.href = "/dashboard";
+    } finally {
+      setResetting(false);
+    }
   }
 
   async function addDocType() {
@@ -276,6 +289,71 @@ export default function AdminPage() {
             >
               {saving ? "Saving…" : saved ? "✓ Saved" : "Save All Settings"}
             </button>
+          </div>
+
+          {/* Factory Reset */}
+          <div className="mt-6 border border-red-200 rounded-2xl overflow-hidden">
+            <div className="flex items-center gap-3 px-5 py-4 bg-red-50 border-b border-red-200">
+              <div className="w-8 h-8 rounded-xl bg-red-100 flex items-center justify-center">
+                <AlertCircle className="w-4 h-4 text-red-600" />
+              </div>
+              <div>
+                <h3 className="font-semibold text-red-900 text-sm">Danger Zone</h3>
+                <p className="text-xs text-red-600">Irreversible actions — use with caution</p>
+              </div>
+            </div>
+            <div className="px-5 py-4 flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-slate-800">Factory Reset</p>
+                <p className="text-xs text-slate-500 mt-0.5">
+                  Deletes all customers, vehicles, drivers, documents, payments and activity logs.
+                  Admin settings, staff accounts, document types and cities are kept.
+                </p>
+              </div>
+              <button
+                onClick={() => setShowResetConfirm(true)}
+                className="ml-6 px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg text-sm font-medium whitespace-nowrap transition-colors"
+              >
+                Reset All Data
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Factory Reset Confirmation Modal */}
+      {showResetConfirm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-md p-6">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-10 h-10 rounded-full bg-red-100 flex items-center justify-center">
+                <AlertCircle className="w-5 h-5 text-red-600" />
+              </div>
+              <h2 className="text-base font-semibold text-slate-900">Confirm Factory Reset</h2>
+            </div>
+            <p className="text-sm text-slate-600 mb-2">This will permanently delete:</p>
+            <ul className="text-sm text-slate-600 list-disc list-inside space-y-1 mb-4">
+              <li>All customers, vehicles and drivers</li>
+              <li>All documents and uploaded files metadata</li>
+              <li>All payments and service charges</li>
+              <li>All activity logs and alerts</li>
+            </ul>
+            <p className="text-sm font-semibold text-red-600 mb-5">This cannot be undone.</p>
+            <div className="flex gap-3">
+              <button
+                onClick={() => setShowResetConfirm(false)}
+                className="flex-1 px-4 py-2 border border-slate-300 text-slate-700 rounded-lg text-sm hover:bg-slate-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={factoryReset}
+                disabled={resetting}
+                className="flex-1 px-4 py-2 bg-red-600 hover:bg-red-700 disabled:bg-red-400 text-white rounded-lg text-sm font-medium"
+              >
+                {resetting ? "Resetting…" : "Yes, Delete Everything"}
+              </button>
+            </div>
           </div>
         </div>
       )}
