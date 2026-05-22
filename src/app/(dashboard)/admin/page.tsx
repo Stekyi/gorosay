@@ -10,6 +10,50 @@ import {
 interface Setting { key: string; value: string }
 interface StaffUser { id: string; name: string; email: string; role: string; isActive: boolean; createdAt: string }
 interface DocType { id: string; name: string; slug: string; appliesTo: string; isActive: boolean; sortOrder: number }
+
+function Field({ k, settings, setSettings }: {
+  k: string;
+  settings: Record<string, string>;
+  setSettings: React.Dispatch<React.SetStateAction<Record<string, string>>>;
+}) {
+  const meta = SETTING_LABELS[k];
+  if (!meta) return null;
+  const value = settings[k] ?? "";
+  if (meta.type === "toggle") {
+    const on = value === "true";
+    return (
+      <div className="flex items-center justify-between py-1">
+        <span className="text-sm text-slate-700">{meta.label}</span>
+        <button
+          onClick={() => setSettings((s) => ({ ...s, [k]: on ? "false" : "true" }))}
+          className="flex items-center gap-1.5 text-sm font-medium"
+        >
+          {on
+            ? <><ToggleRight className="w-8 h-8 text-blue-600" /><span className="text-blue-600">On</span></>
+            : <><ToggleLeft className="w-8 h-8 text-slate-400" /><span className="text-slate-400">Off</span></>
+          }
+        </button>
+      </div>
+    );
+  }
+  return (
+    <div>
+      <label className="block text-xs font-medium text-slate-500 mb-1 uppercase tracking-wide">{meta.label}</label>
+      <div className="relative">
+        <input
+          type={meta.type === "password" ? "password" : meta.type === "email" ? "email" : meta.type === "number" ? "number" : "text"}
+          value={value}
+          onChange={(e) => setSettings((s) => ({ ...s, [k]: e.target.value }))}
+          className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+          placeholder={meta.hint ?? (meta.type === "password" ? "Enter to update…" : "")}
+        />
+        {meta.hint && meta.type !== "password" && (
+          <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-slate-400 pointer-events-none">{meta.hint}</span>
+        )}
+      </div>
+    </div>
+  );
+}
 interface LogEntry { id: string; sentAt: string; type: string; channel: "email" | "sms"; recipient: string; subject: string; status: string; errorMessage: string | null }
 
 const SETTING_LABELS: Record<string, { label: string; type: string; hint?: string }> = {
@@ -140,46 +184,6 @@ export default function AdminPage() {
     setDocTypes((prev) => prev.map((dt) => dt.id === id ? { ...dt, isActive: !isActive } : dt));
   }
 
-  function Field({ k }: { k: string }) {
-    const meta = SETTING_LABELS[k];
-    if (!meta) return null;
-    const value = settings[k] ?? "";
-    if (meta.type === "toggle") {
-      const on = value === "true";
-      return (
-        <div className="flex items-center justify-between py-1">
-          <span className="text-sm text-slate-700">{meta.label}</span>
-          <button
-            onClick={() => setSettings((s) => ({ ...s, [k]: on ? "false" : "true" }))}
-            className="flex items-center gap-1.5 text-sm font-medium"
-          >
-            {on
-              ? <><ToggleRight className="w-8 h-8 text-blue-600" /><span className="text-blue-600">On</span></>
-              : <><ToggleLeft className="w-8 h-8 text-slate-400" /><span className="text-slate-400">Off</span></>
-            }
-          </button>
-        </div>
-      );
-    }
-    return (
-      <div>
-        <label className="block text-xs font-medium text-slate-500 mb-1 uppercase tracking-wide">{meta.label}</label>
-        <div className="relative">
-          <input
-            type={meta.type === "password" ? "password" : meta.type === "email" ? "email" : meta.type === "number" ? "number" : "text"}
-            value={value}
-            onChange={(e) => setSettings((s) => ({ ...s, [k]: e.target.value }))}
-            className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            placeholder={meta.hint ?? (meta.type === "password" ? "Enter to update…" : "")}
-          />
-          {meta.hint && meta.type !== "password" && (
-            <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-slate-400 pointer-events-none">{meta.hint}</span>
-          )}
-        </div>
-      </div>
-    );
-  }
-
   const settingSections = [
     {
       id: "pricing", icon: DollarSign, color: "bg-emerald-100 text-emerald-700",
@@ -255,7 +259,7 @@ export default function AdminPage() {
                 </div>
               </div>
               <div className="p-5 grid grid-cols-1 sm:grid-cols-2 gap-4">
-                {sec.keys.map((k) => <Field key={k} k={k} />)}
+                {sec.keys.map((k) => <Field key={k} k={k} settings={settings} setSettings={setSettings} />)}
               </div>
             </div>
           ))}
