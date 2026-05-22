@@ -420,7 +420,8 @@ export default function CustomerProfilePage({ params }: { params: Promise<{ id: 
         {addingDriver && (
           <form onSubmit={handleAddDriver} className="p-4 border-b border-slate-100 bg-blue-50">
             <div className="mb-3">
-              <input required placeholder="Full Name *" value={driverForm.fullName} onChange={(e) => setDriverForm((f) => ({ ...f, fullName: e.target.value }))} className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm" />
+              <label className="block text-xs font-medium text-slate-600 mb-1">Licence Holder's Name <span className="text-red-500">*</span></label>
+              <input required placeholder="e.g. Kwabena Agyei" value={driverForm.fullName} onChange={(e) => setDriverForm((f) => ({ ...f, fullName: e.target.value }))} className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm" />
             </div>
             {driverError && <p className="text-xs text-red-600 mb-2">{driverError}</p>}
             <div className="flex gap-2">
