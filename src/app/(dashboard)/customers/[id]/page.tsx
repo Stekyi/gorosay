@@ -82,7 +82,7 @@ export default function CustomerProfilePage({ params }: { params: Promise<{ id: 
   const [addingVehicle, setAddingVehicle] = useState(false);
   const [addingDriver, setAddingDriver] = useState(false);
   const [vehicleForm, setVehicleForm] = useState({ registrationNumber: "", make: "", model: "", year: "", vehicleType: "car", color: "" });
-  const [driverForm, setDriverForm] = useState({ fullName: "", tel: "", dateOfBirth: "" });
+  const [driverForm, setDriverForm] = useState({ fullName: "" });
   const [vehicleError, setVehicleError] = useState("");
   const [driverError, setDriverError] = useState("");
 
@@ -419,10 +419,8 @@ export default function CustomerProfilePage({ params }: { params: Promise<{ id: 
 
         {addingDriver && (
           <form onSubmit={handleAddDriver} className="p-4 border-b border-slate-100 bg-blue-50">
-            <div className="grid grid-cols-3 gap-3 mb-3">
-              <input required placeholder="Full Name *" value={driverForm.fullName} onChange={(e) => setDriverForm((f) => ({ ...f, fullName: e.target.value }))} className="px-3 py-2 border border-slate-300 rounded-lg text-sm" />
-              <input placeholder="Phone" value={driverForm.tel} onChange={(e) => setDriverForm((f) => ({ ...f, tel: e.target.value }))} className="px-3 py-2 border border-slate-300 rounded-lg text-sm" />
-              <input type="date" placeholder="Date of Birth" value={driverForm.dateOfBirth} onChange={(e) => setDriverForm((f) => ({ ...f, dateOfBirth: e.target.value }))} className="px-3 py-2 border border-slate-300 rounded-lg text-sm" />
+            <div className="mb-3">
+              <input required placeholder="Full Name *" value={driverForm.fullName} onChange={(e) => setDriverForm((f) => ({ ...f, fullName: e.target.value }))} className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm" />
             </div>
             {driverError && <p className="text-xs text-red-600 mb-2">{driverError}</p>}
             <div className="flex gap-2">
@@ -441,7 +439,7 @@ export default function CustomerProfilePage({ params }: { params: Promise<{ id: 
                 <div className="flex items-center justify-between mb-3">
                   <div>
                     <p className="font-medium text-slate-900">{d.fullName}</p>
-                    <p className="text-xs text-slate-400">{d.tel} · {d.driverNumber}</p>
+                    <p className="text-xs text-slate-400">{d.driverNumber}</p>
                   </div>
                   <button
                     onClick={() => setUploadTarget({ entityType: "driver", entityId: d.id, entityRef: d.fullName, isRenewal: false })}
