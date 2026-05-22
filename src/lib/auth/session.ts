@@ -32,7 +32,15 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         );
         if (!valid) return null;
 
-        return { id: user.id, name: user.name, email: user.email, role: user.role };
+        // Fetch tenant code for ID generation
+        let tenantCode: string | null = null;
+        if (user.tenantId) {
+          const { tenants } = await import("@/lib/db/schema");
+          const { eq } = await import("drizzle-orm");
+          const [t] = await db.select({ code: tenants.code }).from(tenants).where(eq(tenants.id, user.tenantId)).limit(1);
+          tenantCode = t?.code ?? null;
+        }
+        return { id: user.id, name: user.name, email: user.email, role: user.role, tenantId: user.tenantId ?? null, tenantCode };
       },
     }),
   ],
@@ -41,12 +49,16 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       if (user) {
         token.id = user.id;
         token.role = (user as { role?: string }).role;
+        token.tenantId = (user as { tenantId?: string | null }).tenantId ?? null;
+        token.tenantCode = (user as { tenantCode?: string | null }).tenantCode ?? null;
       }
       return token;
     },
     session({ session, token }) {
       session.user.id = token.id as string;
       session.user.role = token.role as string;
+      (session.user as { tenantId?: string | null }).tenantId = token.tenantId as string | null;
+      (session.user as { tenantCode?: string | null }).tenantCode = token.tenantCode as string | null;
       return session;
     },
   },

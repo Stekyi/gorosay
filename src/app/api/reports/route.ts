@@ -56,8 +56,11 @@ export async function GET(req: NextRequest) {
     return conds;
   }
 
+  const user = session.user as { role?: string; tenantId?: string | null };
+
   function buildCustomerConds() {
     const conds: ReturnType<typeof and>[] = [];
+    if (user.role !== "ADMIN" && user.tenantId) conds.push(eq(customers.tenantId, user.tenantId));
     if (customerTypeFilter === "INDIVIDUAL") conds.push(eq(customers.customerType, "INDIVIDUAL"));
     if (customerTypeFilter === "AGENCY") conds.push(eq(customers.customerType, "AGENCY"));
     if (q) conds.push(or(ilike(customers.name, `%${q}%`), ilike(customers.customerNumber, `%${q}%`))!);

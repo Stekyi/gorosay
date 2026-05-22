@@ -4,12 +4,12 @@ import { sql } from "drizzle-orm";
 
 type CounterName = "customer" | "vehicle" | "driver";
 
-export async function nextId(name: CounterName): Promise<number> {
+async function nextId(tenantId: string, name: CounterName): Promise<number> {
   const [row] = await db
     .insert(idCounters)
-    .values({ name, lastValue: 1 })
+    .values({ tenantId, name, lastValue: 1 })
     .onConflictDoUpdate({
-      target: idCounters.name,
+      target: [idCounters.tenantId, idCounters.name],
       set: { lastValue: sql`${idCounters.lastValue} + 1` },
     })
     .returning({ lastValue: idCounters.lastValue });
@@ -18,17 +18,17 @@ export async function nextId(name: CounterName): Promise<number> {
 
 const year = () => new Date().getFullYear();
 
-export async function nextCustomerNumber(): Promise<string> {
-  const n = await nextId("customer");
-  return `GRS-${year()}-${String(n).padStart(5, "0")}`;
+export async function nextCustomerNumber(tenantId: string, tenantCode: string): Promise<string> {
+  const n = await nextId(tenantId, "customer");
+  return `${tenantCode}-${year()}-${String(n).padStart(5, "0")}`;
 }
 
-export async function nextVehicleNumber(): Promise<string> {
-  const n = await nextId("vehicle");
-  return `GRS-V-${String(n).padStart(5, "0")}`;
+export async function nextVehicleNumber(tenantId: string, tenantCode: string): Promise<string> {
+  const n = await nextId(tenantId, "vehicle");
+  return `${tenantCode}-V-${String(n).padStart(5, "0")}`;
 }
 
-export async function nextDriverNumber(): Promise<string> {
-  const n = await nextId("driver");
-  return `GRS-D-${String(n).padStart(5, "0")}`;
+export async function nextDriverNumber(tenantId: string, tenantCode: string): Promise<string> {
+  const n = await nextId(tenantId, "driver");
+  return `${tenantCode}-D-${String(n).padStart(5, "0")}`;
 }

@@ -1,10 +1,9 @@
 import { NextRequest, NextResponse, after } from "next/server";
 import { auth } from "@/lib/auth/session";
 import { db } from "@/lib/db";
-import { customers, cities, suburbs, serviceCharges, paymentRecords } from "@/lib/db/schema";
+import { customers, cities, suburbs } from "@/lib/db/schema";
 import { eq, ilike, or, and, sql } from "drizzle-orm";
 import { nextCustomerNumber } from "@/lib/utils/id-generator";
-import { getPrices } from "@/lib/utils/settings";
 import { processAlerts } from "@/lib/notifications/alerts";
 import { z } from "zod";
 
@@ -22,6 +21,7 @@ export async function GET(req: NextRequest) {
   const session = await auth();
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
+  const user = session.user as { role?: string; tenantId?: string | null };
   const { searchParams } = req.nextUrl;
   const search = searchParams.get("q") ?? "";
   const type = searchParams.get("type") ?? "";
@@ -31,6 +31,10 @@ export async function GET(req: NextRequest) {
   const offset = (page - 1) * limit;
 
   const conditions = [eq(customers.isActive, true)];
+  // Clerks only see their tenant's customers
+  if (user.role !== "ADMIN" && user.tenantId) {
+    conditions.push(eq(customers.tenantId, user.tenantId));
+  }
   if (search) {
     conditions.push(
       or(
@@ -80,6 +84,11 @@ export async function POST(req: NextRequest) {
   const session = await auth();
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
+  const user = session.user as { role?: string; tenantId?: string | null; tenantCode?: string | null };
+  if (!user.tenantId || !user.tenantCode) {
+    return NextResponse.json({ error: "No tenant assigned to your account" }, { status: 403 });
+  }
+
   const body = await req.json();
   const parsed = createSchema.safeParse(body);
   if (!parsed.success) {
@@ -87,11 +96,12 @@ export async function POST(req: NextRequest) {
   }
 
   const data = parsed.data;
-  const customerNumber = await nextCustomerNumber();
+  const customerNumber = await nextCustomerNumber(user.tenantId, user.tenantCode);
 
   const [customer] = await db
     .insert(customers)
     .values({
+      tenantId: user.tenantId,
       customerNumber,
       customerType: data.customerType,
       name: data.name,
@@ -103,8 +113,6 @@ export async function POST(req: NextRequest) {
     })
     .returning();
 
-  // Trigger created an alert row; process it after response is sent
   after(() => processAlerts().catch(() => {}));
-
   return NextResponse.json(customer, { status: 201 });
 }

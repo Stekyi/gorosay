@@ -5,11 +5,13 @@ import {
   Settings, FileText, DollarSign, MessageSquare, Mail, Users,
   Eye, EyeOff, Plus, X, ScrollText, RefreshCw, CheckCircle2,
   AlertCircle, MinusCircle, ToggleLeft, ToggleRight, ShieldCheck,
+  Building2,
 } from "lucide-react";
 
 interface Setting { key: string; value: string }
 interface StaffUser { id: string; name: string; email: string; role: string; isActive: boolean; createdAt: string }
 interface DocType { id: string; name: string; slug: string; appliesTo: string; isActive: boolean; sortOrder: number }
+interface Tenant { id: string; name: string; code: string; contactEmail: string | null; contactTel: string | null; isActive: boolean; createdAt: string; userCount: number }
 
 function Field({ k, settings, setSettings }: {
   k: string;
@@ -76,6 +78,7 @@ const SETTING_LABELS: Record<string, { label: string; type: string; hint?: strin
 
 const TABS = [
   { id: "settings", label: "Settings", icon: Settings },
+  { id: "tenants", label: "Tenants", icon: Building2 },
   { id: "staff", label: "Staff", icon: Users },
   { id: "doctypes", label: "Document Types", icon: FileText },
   { id: "log", label: "Activity Log", icon: ScrollText },
@@ -102,6 +105,14 @@ export default function AdminPage() {
   const [logs, setLogs] = useState<LogEntry[]>([]);
   const [logsLoading, setLogsLoading] = useState(false);
   const [retrying, setRetrying] = useState(false);
+  const [tenants, setTenants] = useState<Tenant[]>([]);
+  const [showCreateTenant, setShowCreateTenant] = useState(false);
+  const [newTenant, setNewTenant] = useState({ name: "", code: "", contactEmail: "", contactTel: "", clerkName: "", clerkEmail: "", clerkPassword: "" });
+  const [newTenantError, setNewTenantError] = useState("");
+  const [creatingTenant, setCreatingTenant] = useState(false);
+  const [showTenantPwd, setShowTenantPwd] = useState(false);
+  const [tenantResetId, setTenantResetId] = useState<string | null>(null);
+  const [resettingTenant, setResettingTenant] = useState(false);
 
   function loadLogs() {
     setLogsLoading(true);
@@ -123,6 +134,66 @@ export default function AdminPage() {
     }
   }
 
+  function loadTenants() {
+    fetch("/api/admin/tenants")
+      .then((r) => r.json())
+      .then((data) => { if (Array.isArray(data)) setTenants(data); })
+      .catch(() => {});
+  }
+
+  async function createTenant(e: React.SyntheticEvent) {
+    e.preventDefault();
+    setNewTenantError("");
+    const codeUpper = newTenant.code.toUpperCase();
+    if (!/^[A-Z0-9]{2,8}$/.test(codeUpper)) {
+      setNewTenantError("Code must be 2–8 uppercase letters/numbers.");
+      return;
+    }
+    if (newTenant.clerkPassword.length < 8) {
+      setNewTenantError("Clerk password must be at least 8 characters.");
+      return;
+    }
+    setCreatingTenant(true);
+    const res = await fetch("/api/admin/tenants", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ ...newTenant, code: codeUpper }),
+    });
+    const data = await res.json();
+    setCreatingTenant(false);
+    if (!res.ok) {
+      setNewTenantError(typeof data.error === "string" ? data.error : "Failed to create tenant.");
+      return;
+    }
+    setNewTenant({ name: "", code: "", contactEmail: "", contactTel: "", clerkName: "", clerkEmail: "", clerkPassword: "" });
+    setShowCreateTenant(false);
+    loadTenants();
+  }
+
+  async function toggleTenant(tenant: Tenant) {
+    await fetch("/api/admin/tenants", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id: tenant.id, isActive: !tenant.isActive }),
+    });
+    setTenants((prev) => prev.map((t) => t.id === tenant.id ? { ...t, isActive: !tenant.isActive } : t));
+  }
+
+  async function factoryResetTenant() {
+    if (!tenantResetId) return;
+    setResettingTenant(true);
+    try {
+      await fetch("/api/admin/factory-reset", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ tenantId: tenantResetId }),
+      });
+      setTenantResetId(null);
+    } finally {
+      setResettingTenant(false);
+    }
+  }
+
   useEffect(() => {
     Promise.all([
       fetch("/api/admin/settings").then((r) => r.json()).catch(() => []),
@@ -138,6 +209,7 @@ export default function AdminPage() {
       if (Array.isArray(users)) setStaffList(users);
     });
     loadLogs();
+    loadTenants();
   }, []);
 
   async function createUser(e: React.SyntheticEvent) {
@@ -315,6 +387,167 @@ export default function AdminPage() {
                 className="ml-6 px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg text-sm font-medium whitespace-nowrap transition-colors"
               >
                 Reset All Data
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── TENANTS TAB ── */}
+      {tab === "tenants" && (
+        <div className="space-y-4">
+          <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden">
+            <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100">
+              <div className="flex items-center gap-3">
+                <div className="w-8 h-8 rounded-xl bg-slate-100 flex items-center justify-center">
+                  <Building2 className="w-4 h-4 text-slate-600" />
+                </div>
+                <div>
+                  <h3 className="font-semibold text-slate-900 text-sm">Agent Companies</h3>
+                  <p className="text-xs text-slate-500">{tenants.length} tenant{tenants.length !== 1 ? "s" : ""} — each sees only their own data</p>
+                </div>
+              </div>
+              <button
+                onClick={() => { setShowCreateTenant((v) => !v); setNewTenantError(""); }}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
+                  showCreateTenant ? "bg-slate-100 text-slate-600" : "bg-blue-600 text-white hover:bg-blue-700"
+                }`}
+              >
+                {showCreateTenant ? <><X className="w-3.5 h-3.5" /> Cancel</> : <><Plus className="w-3.5 h-3.5" /> New Tenant</>}
+              </button>
+            </div>
+
+            {showCreateTenant && (
+              <form onSubmit={createTenant} className="p-5 border-b border-slate-100 bg-blue-50/60 space-y-4">
+                <p className="text-xs font-medium text-blue-700">A clerk account is created automatically with the tenant.</p>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs text-slate-600 mb-1">Company Name</label>
+                    <input required value={newTenant.name} onChange={(e) => setNewTenant((t) => ({ ...t, name: e.target.value }))} className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm bg-white" placeholder="Accra Motors Ltd" />
+                  </div>
+                  <div>
+                    <label className="block text-xs text-slate-600 mb-1">Tenant Code <span className="text-slate-400">(prefix for IDs)</span></label>
+                    <input
+                      required
+                      value={newTenant.code}
+                      onChange={(e) => setNewTenant((t) => ({ ...t, code: e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, "") }))}
+                      maxLength={8}
+                      className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm bg-white font-mono"
+                      placeholder="ACM"
+                    />
+                    <p className="text-xs text-slate-400 mt-0.5">2–8 letters/numbers. IDs become ACM-2026-00001</p>
+                  </div>
+                  <div>
+                    <label className="block text-xs text-slate-600 mb-1">Contact Email <span className="text-slate-400">(optional)</span></label>
+                    <input type="email" value={newTenant.contactEmail} onChange={(e) => setNewTenant((t) => ({ ...t, contactEmail: e.target.value }))} className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm bg-white" placeholder="info@accramotors.com" />
+                  </div>
+                  <div>
+                    <label className="block text-xs text-slate-600 mb-1">Contact Tel <span className="text-slate-400">(optional)</span></label>
+                    <input value={newTenant.contactTel} onChange={(e) => setNewTenant((t) => ({ ...t, contactTel: e.target.value }))} className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm bg-white" placeholder="0302 000000" />
+                  </div>
+                </div>
+                <div className="border-t border-blue-200 pt-4">
+                  <p className="text-xs font-semibold text-slate-700 mb-3">Clerk Account</p>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-xs text-slate-600 mb-1">Clerk Full Name</label>
+                      <input required value={newTenant.clerkName} onChange={(e) => setNewTenant((t) => ({ ...t, clerkName: e.target.value }))} className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm bg-white" placeholder="Kofi Mensah" />
+                    </div>
+                    <div>
+                      <label className="block text-xs text-slate-600 mb-1">Clerk Email</label>
+                      <input required type="email" value={newTenant.clerkEmail} onChange={(e) => setNewTenant((t) => ({ ...t, clerkEmail: e.target.value }))} className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm bg-white" placeholder="kofi@accramotors.com" />
+                    </div>
+                    <div className="relative">
+                      <label className="block text-xs text-slate-600 mb-1">Clerk Password <span className="text-slate-400">(min 8 chars)</span></label>
+                      <input required type={showTenantPwd ? "text" : "password"} value={newTenant.clerkPassword} onChange={(e) => setNewTenant((t) => ({ ...t, clerkPassword: e.target.value }))} className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm bg-white pr-9" placeholder="••••••••" />
+                      <button type="button" onClick={() => setShowTenantPwd((v) => !v)} className="absolute right-2.5 top-7 text-slate-400 hover:text-slate-600">
+                        {showTenantPwd ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+                {newTenantError && <p className="text-xs text-red-600">{newTenantError}</p>}
+                <button type="submit" disabled={creatingTenant} className="px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white rounded-lg text-sm font-medium">
+                  {creatingTenant ? "Creating…" : "Create Tenant"}
+                </button>
+              </form>
+            )}
+
+            <div className="divide-y divide-slate-100">
+              {tenants.map((tenant) => (
+                <div key={tenant.id} className="flex items-center gap-4 px-5 py-4">
+                  <div className="w-10 h-10 rounded-xl bg-blue-100 flex items-center justify-center flex-shrink-0">
+                    <span className="text-xs font-bold text-blue-700 font-mono">{tenant.code}</span>
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="text-sm font-medium text-slate-900">{tenant.name}</span>
+                      {!tenant.isActive && <span className="text-xs bg-red-100 text-red-600 px-1.5 py-0.5 rounded-full">Inactive</span>}
+                      <span className="text-xs text-slate-400">{tenant.userCount} user{tenant.userCount !== 1 ? "s" : ""}</span>
+                    </div>
+                    {(tenant.contactEmail || tenant.contactTel) && (
+                      <p className="text-xs text-slate-400 mt-0.5 truncate">{[tenant.contactEmail, tenant.contactTel].filter(Boolean).join(" · ")}</p>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-2 flex-shrink-0">
+                    <button
+                      onClick={() => setTenantResetId(tenant.id)}
+                      className="text-xs text-slate-400 hover:text-red-600 px-2.5 py-1.5 rounded-lg border border-slate-200 hover:border-red-200 transition-colors"
+                    >
+                      Reset Data
+                    </button>
+                    <button
+                      onClick={() => toggleTenant(tenant)}
+                      className={`text-xs px-2.5 py-1.5 rounded-lg font-medium border transition-colors ${
+                        tenant.isActive
+                          ? "bg-green-50 text-green-700 border-green-200 hover:bg-red-50 hover:text-red-700 hover:border-red-200"
+                          : "bg-slate-50 text-slate-500 border-slate-200 hover:bg-green-50 hover:text-green-700 hover:border-green-200"
+                      }`}
+                    >
+                      {tenant.isActive ? "Active" : "Inactive"}
+                    </button>
+                  </div>
+                </div>
+              ))}
+              {tenants.length === 0 && <p className="text-sm text-slate-400 text-center py-6">No tenants yet. Create one to get started.</p>}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Tenant-scoped factory reset modal */}
+      {tenantResetId && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-md p-6">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-10 h-10 rounded-full bg-red-100 flex items-center justify-center">
+                <AlertCircle className="w-5 h-5 text-red-600" />
+              </div>
+              <div>
+                <h2 className="text-base font-semibold text-slate-900">Reset Tenant Data</h2>
+                <p className="text-xs text-slate-500">{tenants.find((t) => t.id === tenantResetId)?.name}</p>
+              </div>
+            </div>
+            <p className="text-sm text-slate-600 mb-2">This will permanently delete all records for this tenant:</p>
+            <ul className="text-sm text-slate-600 list-disc list-inside space-y-1 mb-4">
+              <li>All customers, vehicles and drivers</li>
+              <li>All documents and payment records</li>
+              <li>All alerts and activity logs</li>
+            </ul>
+            <p className="text-sm font-semibold text-red-600 mb-5">The tenant account and clerk login are kept. This cannot be undone.</p>
+            <div className="flex gap-3">
+              <button
+                onClick={() => setTenantResetId(null)}
+                className="flex-1 px-4 py-2 border border-slate-300 text-slate-700 rounded-lg text-sm hover:bg-slate-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={factoryResetTenant}
+                disabled={resettingTenant}
+                className="flex-1 px-4 py-2 bg-red-600 hover:bg-red-700 disabled:bg-red-400 text-white rounded-lg text-sm font-medium"
+              >
+                {resettingTenant ? "Resetting…" : "Delete Tenant Data"}
               </button>
             </div>
           </div>

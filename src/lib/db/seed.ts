@@ -3,7 +3,7 @@
  * Usage: npx tsx src/lib/db/seed.ts
  */
 import { db } from "./index";
-import { settings, documentTypes, cities, idCounters } from "./schema";
+import { settings, documentTypes, cities } from "./schema";
 
 const DEFAULT_SETTINGS = [
   { key: "price_new_vehicle", value: process.env.SEED_PRICE_NEW_VEHICLE ?? "50" },
@@ -52,11 +52,6 @@ async function seed() {
   console.log("Seeding Ghana cities...");
   for (const name of GHANA_CITIES) {
     await db.insert(cities).values({ name }).onConflictDoNothing();
-  }
-
-  console.log("Seeding ID counters...");
-  for (const name of ["customer", "vehicle", "driver"] as const) {
-    await db.insert(idCounters).values({ name, lastValue: 0 }).onConflictDoNothing();
   }
 
   console.log("Seed complete.");

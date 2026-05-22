@@ -15,10 +15,15 @@ export async function GET(req: NextRequest) {
   const customerSearch = searchParams.get("customer") ?? "";
   const cityId = searchParams.get("cityId") ?? "";
 
+  const user = session.user as { role?: string; tenantId?: string | null };
+
   const conditions = [
     eq(documents.status, "ACTIVE"),
     eq(documents.version, 1),
   ];
+  if (user.role !== "ADMIN" && user.tenantId) {
+    conditions.push(eq(customers.tenantId, user.tenantId));
+  }
   if (from) conditions.push(gte(documents.expiryDate, from));
   if (to) conditions.push(lte(documents.expiryDate, to));
 

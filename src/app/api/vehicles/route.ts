@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth/session";
 import { db } from "@/lib/db";
-import { vehicles, serviceCharges } from "@/lib/db/schema";
+import { vehicles, customers, serviceCharges } from "@/lib/db/schema";
 import { eq, ilike } from "drizzle-orm";
 import { nextVehicleNumber } from "@/lib/utils/id-generator";
 import { getPrices } from "@/lib/utils/settings";
@@ -24,6 +24,11 @@ export async function POST(req: NextRequest) {
   const session = await auth();
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
+  const user = session.user as { role?: string; tenantId?: string | null; tenantCode?: string | null };
+  if (!user.tenantId || !user.tenantCode) {
+    return NextResponse.json({ error: "No tenant assigned to your account" }, { status: 403 });
+  }
+
   const body = await req.json();
   const parsed = createSchema.safeParse(body);
   if (!parsed.success) {
@@ -31,6 +36,13 @@ export async function POST(req: NextRequest) {
   }
 
   const data = parsed.data;
+
+  // Verify the customer belongs to this tenant
+  const [customer] = await db.select({ tenantId: customers.tenantId }).from(customers)
+    .where(eq(customers.id, data.customerId)).limit(1);
+  if (!customer || (user.role !== "ADMIN" && customer.tenantId !== user.tenantId)) {
+    return NextResponse.json({ error: "Customer not found" }, { status: 404 });
+  }
 
   if (data.registrationNumber) {
     const [dup] = await db
@@ -46,7 +58,7 @@ export async function POST(req: NextRequest) {
     }
   }
 
-  const vehicleNumber = await nextVehicleNumber();
+  const vehicleNumber = await nextVehicleNumber(user.tenantId, user.tenantCode);
   const prices = await getPrices();
 
   const [vehicle] = await db
@@ -66,11 +78,9 @@ export async function POST(req: NextRequest) {
     })
     .returning();
 
-  // Update storage folder with real vehicle ID
   const folder = vehicleFolderKey(data.customerId, vehicle.id);
   await db.update(vehicles).set({ storageFolder: folder }).where(eq(vehicles.id, vehicle.id));
 
-  // Auto-record the service charge
   await db.insert(serviceCharges).values({
     customerId: data.customerId,
     vehicleId: vehicle.id,

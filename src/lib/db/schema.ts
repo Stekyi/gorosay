@@ -37,6 +37,18 @@ export const docAppliesToEnum = pgEnum("doc_applies_to", [
   "both",
 ]);
 
+// ─── Tenants ──────────────────────────────────────────────────────────────────
+
+export const tenants = pgTable("tenants", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  name: varchar("name", { length: 200 }).notNull(),
+  code: varchar("code", { length: 10 }).notNull().unique(), // prefix for IDs e.g. "MTN"
+  contactEmail: varchar("contact_email", { length: 200 }),
+  contactTel: varchar("contact_tel", { length: 30 }),
+  isActive: boolean("is_active").notNull().default(true),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
 // ─── Settings ─────────────────────────────────────────────────────────────────
 
 export const settings = pgTable("settings", {
@@ -49,6 +61,7 @@ export const settings = pgTable("settings", {
 
 export const staffUsers = pgTable("staff_users", {
   id: uuid("id").defaultRandom().primaryKey(),
+  tenantId: uuid("tenant_id").references(() => tenants.id, { onDelete: "cascade" }), // NULL = super-admin
   name: varchar("name", { length: 200 }).notNull(),
   email: varchar("email", { length: 200 }).notNull().unique(),
   passwordHash: varchar("password_hash", { length: 255 }).notNull(),
@@ -96,7 +109,8 @@ export const customers = pgTable(
   "customers",
   {
     id: uuid("id").defaultRandom().primaryKey(),
-    customerNumber: varchar("customer_number", { length: 20 }).unique(),
+    tenantId: uuid("tenant_id").notNull().references(() => tenants.id, { onDelete: "cascade" }),
+    customerNumber: varchar("customer_number", { length: 30 }).unique(),
     customerType: customerTypeEnum("customer_type").notNull(),
     name: varchar("name", { length: 200 }).notNull(),
     tel: varchar("tel", { length: 30 }).notNull(),
@@ -108,7 +122,10 @@ export const customers = pgTable(
     createdAt: timestamp("created_at").defaultNow().notNull(),
     updatedAt: timestamp("updated_at").defaultNow().notNull(),
   },
-  (t) => [index("customers_tel_idx").on(t.tel)]
+  (t) => [
+    index("customers_tel_idx").on(t.tel),
+    index("customers_tenant_idx").on(t.tenantId),
+  ]
 );
 
 // ─── Vehicles ─────────────────────────────────────────────────────────────────
@@ -226,6 +243,7 @@ export const alerts = pgTable(
   "alerts",
   {
     id: uuid("id").defaultRandom().primaryKey(),
+    tenantId: uuid("tenant_id").references(() => tenants.id, { onDelete: "cascade" }),
     type: varchar("type", { length: 50 }).notNull(), // 'welcome' | 'doc_upload'
     status: varchar("status", { length: 20 }).notNull().default("pending"), // pending | sent | failed | skipped
     recipientEmail: varchar("recipient_email", { length: 200 }),
@@ -282,10 +300,15 @@ export const notificationLogs = pgTable(
 
 // ─── Counters (for sequential ID generation) ──────────────────────────────────
 
-export const idCounters = pgTable("id_counters", {
-  name: varchar("name", { length: 50 }).primaryKey(), // 'customer' | 'vehicle' | 'driver'
-  lastValue: integer("last_value").notNull().default(0),
-});
+export const idCounters = pgTable(
+  "id_counters",
+  {
+    tenantId: uuid("tenant_id").notNull().references(() => tenants.id, { onDelete: "cascade" }),
+    name: varchar("name", { length: 50 }).notNull(), // 'customer' | 'vehicle' | 'driver'
+    lastValue: integer("last_value").notNull().default(0),
+  },
+  (t) => [uniqueIndex("id_counters_tenant_name_idx").on(t.tenantId, t.name)]
+);
 
 // ─── Relations ────────────────────────────────────────────────────────────────
 

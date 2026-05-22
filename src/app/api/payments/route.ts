@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth/session";
 import { db } from "@/lib/db";
-import { paymentRecords, serviceCharges } from "@/lib/db/schema";
-import { eq, sum } from "drizzle-orm";
+import { paymentRecords, serviceCharges, customers } from "@/lib/db/schema";
+import { eq } from "drizzle-orm";
 import { z } from "zod";
 
 const createSchema = z.object({
@@ -48,6 +48,15 @@ export async function GET(req: NextRequest) {
   const customerId = req.nextUrl.searchParams.get("customerId");
   if (!customerId) {
     return NextResponse.json({ error: "customerId required" }, { status: 400 });
+  }
+
+  // Verify tenant ownership
+  const user = session.user as { role?: string; tenantId?: string | null };
+  if (user.role !== "ADMIN" && user.tenantId) {
+    const [c] = await db.select({ tenantId: customers.tenantId }).from(customers).where(eq(customers.id, customerId)).limit(1);
+    if (!c || c.tenantId !== user.tenantId) {
+      return NextResponse.json({ error: "Not found" }, { status: 404 });
+    }
   }
 
   const [payments, charges] = await Promise.all([

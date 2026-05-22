@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth/session";
 import { db } from "@/lib/db";
-import { drivers, serviceCharges } from "@/lib/db/schema";
+import { drivers, customers, serviceCharges } from "@/lib/db/schema";
 import { eq } from "drizzle-orm";
 import { nextDriverNumber } from "@/lib/utils/id-generator";
 import { getPrices } from "@/lib/utils/settings";
@@ -11,14 +11,16 @@ import { z } from "zod";
 const createSchema = z.object({
   customerId: z.string().uuid(),
   fullName: z.string().min(1),
-  tel: z.string().optional(),
-  email: z.string().email().optional().or(z.literal("")),
-  dateOfBirth: z.string().optional(),
 });
 
 export async function POST(req: NextRequest) {
   const session = await auth();
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+  const user = session.user as { role?: string; tenantId?: string | null; tenantCode?: string | null };
+  if (!user.tenantId || !user.tenantCode) {
+    return NextResponse.json({ error: "No tenant assigned to your account" }, { status: 403 });
+  }
 
   const body = await req.json();
   const parsed = createSchema.safeParse(body);
@@ -27,7 +29,15 @@ export async function POST(req: NextRequest) {
   }
 
   const data = parsed.data;
-  const driverNumber = await nextDriverNumber();
+
+  // Verify customer belongs to this tenant
+  const [customer] = await db.select({ tenantId: customers.tenantId }).from(customers)
+    .where(eq(customers.id, data.customerId)).limit(1);
+  if (!customer || (user.role !== "ADMIN" && customer.tenantId !== user.tenantId)) {
+    return NextResponse.json({ error: "Customer not found" }, { status: 404 });
+  }
+
+  const driverNumber = await nextDriverNumber(user.tenantId, user.tenantCode);
   const prices = await getPrices();
 
   const [driver] = await db
@@ -36,9 +46,6 @@ export async function POST(req: NextRequest) {
       driverNumber,
       customerId: data.customerId,
       fullName: data.fullName,
-      tel: data.tel ?? null,
-      email: data.email || null,
-      dateOfBirth: data.dateOfBirth ?? null,
       storageFolder: driverFolderKey(data.customerId, "PLACEHOLDER"),
     })
     .returning();
