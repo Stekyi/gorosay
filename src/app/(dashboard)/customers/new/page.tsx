@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { AutocompleteSelect } from "@/components/shared/AutocompleteSelect";
 import { ArrowLeft } from "lucide-react";
@@ -8,6 +8,7 @@ import Link from "next/link";
 
 export default function NewCustomerPage() {
   const router = useRouter();
+  const [prices, setPrices] = useState<{ newVehicle: number; newDriver: number; renewal: number } | null>(null);
   const [customerType, setCustomerType] = useState<"INDIVIDUAL" | "AGENCY">("INDIVIDUAL");
   const [name, setName] = useState("");
   const [tel, setTel] = useState("");
@@ -17,6 +18,10 @@ export default function NewCustomerPage() {
   const [suburbId, setSuburbId] = useState("");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
+
+  useEffect(() => {
+    fetch("/api/prices").then((r) => r.ok ? r.json() : null).then((d) => { if (d) setPrices(d); }).catch(() => {});
+  }, []);
 
   async function fetchCities(q: string) {
     const res = await fetch(`/api/admin/cities?q=${encodeURIComponent(q)}`);
@@ -90,6 +95,22 @@ export default function NewCustomerPage() {
           <p className="text-sm text-slate-500 mt-0.5">Create a customer profile</p>
         </div>
       </div>
+
+      {/* Rate sheet */}
+      {prices && (
+        <div className="grid grid-cols-3 gap-3 mb-2">
+          {[
+            { label: "New Vehicle Package", value: prices.newVehicle },
+            { label: "New Driver Registration", value: prices.newDriver },
+            { label: "Document Renewal", value: prices.renewal },
+          ].map((item) => (
+            <div key={item.label} className="bg-white rounded-xl border border-slate-200 px-4 py-3 text-center">
+              <p className="text-xs text-slate-500 mb-1">{item.label}</p>
+              <p className="text-lg font-bold text-slate-900">GHC {item.value.toFixed(2)}</p>
+            </div>
+          ))}
+        </div>
+      )}
 
       <div className="bg-white rounded-xl border border-slate-200 p-6">
         <form onSubmit={handleSubmit} className="space-y-5">

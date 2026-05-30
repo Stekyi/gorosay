@@ -5,7 +5,7 @@ import {
   Settings, FileText, DollarSign, MessageSquare, Mail, Users,
   Eye, EyeOff, Plus, X, ScrollText, RefreshCw, CheckCircle2,
   AlertCircle, MinusCircle, ToggleLeft, ToggleRight, ShieldCheck,
-  Building2,
+  Building2, Trash2,
 } from "lucide-react";
 
 interface Setting { key: string; value: string }
@@ -127,6 +127,9 @@ export default function AdminPage() {
   const [showTenantUserPwd, setShowTenantUserPwd] = useState(false);
   const [tenantUserResetTarget, setTenantUserResetTarget] = useState<StaffUser | null>(null);
   const [tenantUserResetPwd, setTenantUserResetPwd] = useState("");
+  const [showDeleteTenant, setShowDeleteTenant] = useState(false);
+  const [deleteTenantConfirmName, setDeleteTenantConfirmName] = useState("");
+  const [deletingTenant, setDeletingTenant] = useState(false);
 
   function loadLogs() {
     setLogsLoading(true);
@@ -255,6 +258,21 @@ export default function AdminPage() {
     await fetch("/api/admin/users", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id: tenantUserResetTarget.id, password: tenantUserResetPwd }) });
     setTenantUserResetTarget(null);
     setTenantUserResetPwd("");
+  }
+
+  async function deleteTenant() {
+    if (!selectedTenantId || !tenantDetail) return;
+    setDeletingTenant(true);
+    try {
+      await fetch(`/api/admin/tenants/${selectedTenantId}`, { method: "DELETE" });
+      setShowDeleteTenant(false);
+      setDeleteTenantConfirmName("");
+      setSelectedTenantId(null);
+      setTenantDetail(null);
+      loadTenants();
+    } finally {
+      setDeletingTenant(false);
+    }
   }
 
   useEffect(() => {
@@ -633,6 +651,12 @@ export default function AdminPage() {
                       Reset Data
                     </button>
                     <button
+                      onClick={() => { setShowDeleteTenant(true); setDeleteTenantConfirmName(""); }}
+                      className="flex items-center gap-1 text-xs text-red-500 hover:text-white hover:bg-red-600 px-2.5 py-1.5 rounded-lg border border-red-200 hover:border-red-600 transition-colors"
+                    >
+                      <Trash2 className="w-3 h-3" /> Delete
+                    </button>
+                    <button
                       onClick={() => toggleTenant(tenantDetail.tenant)}
                       className={`text-xs px-2.5 py-1.5 rounded-lg font-medium border transition-colors ${
                         tenantDetail.tenant.isActive
@@ -794,6 +818,57 @@ export default function AdminPage() {
                 className="flex-1 px-4 py-2 bg-red-600 hover:bg-red-700 disabled:bg-red-400 text-white rounded-lg text-sm font-medium"
               >
                 {resettingTenant ? "Resetting…" : "Delete Tenant Data"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Tenant Modal */}
+      {showDeleteTenant && tenantDetail && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-md p-6">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-10 h-10 rounded-full bg-red-100 flex items-center justify-center">
+                <Trash2 className="w-5 h-5 text-red-600" />
+              </div>
+              <div>
+                <h2 className="text-base font-semibold text-slate-900">Delete Tenant</h2>
+                <p className="text-xs text-slate-500">{tenantDetail.tenant.name}</p>
+              </div>
+            </div>
+            <p className="text-sm text-slate-600 mb-2">This will permanently delete <span className="font-semibold">everything</span> for this tenant:</p>
+            <ul className="text-sm text-slate-600 list-disc list-inside space-y-1 mb-4">
+              <li>All customers, vehicles and drivers</li>
+              <li>All documents and uploaded files in R2</li>
+              <li>All payments and service charges</li>
+              <li>All clerk accounts and activity logs</li>
+            </ul>
+            <p className="text-sm font-semibold text-red-600 mb-4">This cannot be undone.</p>
+            <div className="mb-5">
+              <label className="block text-xs text-slate-600 mb-1">
+                Type <span className="font-mono font-semibold text-slate-900">{tenantDetail.tenant.name}</span> to confirm
+              </label>
+              <input
+                value={deleteTenantConfirmName}
+                onChange={(e) => setDeleteTenantConfirmName(e.target.value)}
+                className="w-full px-3 py-2 border border-red-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-red-400"
+                placeholder={tenantDetail.tenant.name}
+              />
+            </div>
+            <div className="flex gap-3">
+              <button
+                onClick={() => { setShowDeleteTenant(false); setDeleteTenantConfirmName(""); }}
+                className="flex-1 px-4 py-2 border border-slate-300 text-slate-700 rounded-lg text-sm hover:bg-slate-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={deleteTenant}
+                disabled={deletingTenant || deleteTenantConfirmName !== tenantDetail.tenant.name}
+                className="flex-1 px-4 py-2 bg-red-600 hover:bg-red-700 disabled:bg-red-300 text-white rounded-lg text-sm font-medium"
+              >
+                {deletingTenant ? "Deleting…" : "Delete Tenant"}
               </button>
             </div>
           </div>
