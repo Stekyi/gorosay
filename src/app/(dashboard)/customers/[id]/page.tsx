@@ -72,6 +72,7 @@ export default function CustomerProfilePage({ params }: { params: Promise<{ id: 
   const [driverDocs, setDriverDocs] = useState<Record<string, Document[]>>({});
   const [docTypes, setDocTypes] = useState<DocumentType[]>([]);
   const [loading, setLoading] = useState(true);
+  const [prices, setPrices] = useState<{ newVehicle: number; newDriver: number } | null>(null);
   const [uploadTarget, setUploadTarget] = useState<{
     entityType: "vehicle" | "driver";
     entityId: string;
@@ -126,7 +127,10 @@ export default function CustomerProfilePage({ params }: { params: Promise<{ id: 
     setLoading(false);
   }
 
-  useEffect(() => { loadProfile(); }, [id]);
+  useEffect(() => {
+    loadProfile();
+    fetch("/api/prices").then((r) => r.ok ? r.json() : null).then((d) => { if (d) setPrices(d); }).catch(() => {});
+  }, [id]);
 
   async function handleAddVehicle(e: React.SyntheticEvent) {
     e.preventDefault();
@@ -326,7 +330,9 @@ export default function CustomerProfilePage({ params }: { params: Promise<{ id: 
             </div>
             {vehicleError && <p className="text-xs text-red-600 mb-2">{vehicleError}</p>}
             <div className="flex gap-2">
-              <button type="submit" className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium">Save Vehicle (GHC 50 charged)</button>
+              <button type="submit" className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium">
+                Save Vehicle{prices ? ` (GHC ${prices.newVehicle.toFixed(2)} charged)` : ""}
+              </button>
               <button type="button" onClick={() => { setAddingVehicle(false); setVehicleError(""); }} className="px-4 py-2 border border-slate-300 rounded-lg text-sm">Cancel</button>
             </div>
           </form>
@@ -425,7 +431,9 @@ export default function CustomerProfilePage({ params }: { params: Promise<{ id: 
             </div>
             {driverError && <p className="text-xs text-red-600 mb-2">{driverError}</p>}
             <div className="flex gap-2">
-              <button type="submit" className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium">Save Driver (GHC 15 charged)</button>
+              <button type="submit" className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium">
+                Save Driver{prices ? ` (GHC ${prices.newDriver.toFixed(2)} charged)` : ""}
+              </button>
               <button type="button" onClick={() => { setAddingDriver(false); setDriverError(""); }} className="px-4 py-2 border border-slate-300 rounded-lg text-sm">Cancel</button>
             </div>
           </form>
